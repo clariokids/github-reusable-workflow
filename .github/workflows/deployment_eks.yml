@@ -588,7 +588,8 @@ jobs:
         uses: ./.github/actions/ecr-publish-action
         id: publish_image
         with:
-          aws-region: ${{ needs.config.outputs.aws_region }}
+          aws-region: "ap-southeast-3"
+          # ${{ needs.config.outputs.aws_region }}
           ecr_name: ${{ inputs.ecr_name || inputs.service_name}}
           role-to-assume: ${{ needs.config.outputs.build_role_arn }}
           dockerfile: ${{ (inputs.dockerfile != '' && inputs.dockerfile) || 'Dockerfile' }}
