@@ -549,16 +549,24 @@ jobs:
       - name: Modify config file
         if: inputs.repo_name != ''
         run: |
-          GO_FILE_PATH="app.config.dev.yml"
-          NODE_FILE_PATH="src/config/app.config.js"
+          GO_FILE_PATH=$(find . -name app.config.dev.yml -type f)
+          NODE_FILE_PATH=$(find . -name app.config.js -type f)
+          PYTHON_FILE_PATH=$(find . -name environment.py -type f)
           if [ -f "$GO_FILE_PATH" ]; then
-                cp app.config.lab.yml $GO_FILE_PATH
+                lab_file=$(find . -name app.config.lab.yml -type f)
+                cp $lab_file $GO_FILE_PATH
                 echo "Updated $GO_FILE_PATH"
                 cat $GO_FILE_PATH
           elif [ -f "$NODE_FILE_PATH" ]; then
-                cp src/config/app.config.lab.js $NODE_FILE_PATH
+                lab_file=$(find . -name app.config.lab.js -type f)
+                cp $lab_file $NODE_FILE_PATH
                 echo "Updated $NODE_FILE_PATH"
                 cat $NODE_FILE_PATH
+          elif [ -f "$PYTHON_FILE_PATH" ]; then
+                lab_file=$(find . -name environment.lab.py -type f)
+                cp $lab_file $PYTHON_FILE_PATH
+                echo "Updated $PYTHON_FILE_PATH"
+                cat $PYTHON_FILE_PATH
           else
             echo "No files updated"
           fi
