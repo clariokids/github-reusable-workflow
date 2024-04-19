@@ -243,7 +243,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          repository: qoala-engineering/disposable-static-website-action
+          repository: qoala-engineering/disposable-static-website-action@onboard-platform
           token: ${{ secrets.token_github }}
           ref: main
           path: .github/actions/disposable-static-website-action
