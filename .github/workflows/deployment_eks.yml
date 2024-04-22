@@ -649,7 +649,7 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ (inputs.consumer true && format('{0}-{1}', '-consumer', inputs.service_name)) || inputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
+          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ (inputs.consumer == true && format('{0}-{1}', '-consumer', inputs.service_name)) || inputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
           if grep -A3 'stagingFactory:' ${{ steps.values.outputs.values }} | tail -n1 | cut -c 12- | grep -q "true"; then
             kubectl annotate --overwrite namespace $env_name staging-factory=true
           fi
