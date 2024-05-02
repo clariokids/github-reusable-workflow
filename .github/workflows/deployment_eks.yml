@@ -713,7 +713,7 @@ jobs:
                       },
                       {
                         "type": "mrkdwn",
-                        "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZz/logs-app?orgId=1&var-app=${{ inputs.environment}}-${{ inputs.bu }}%2F${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }}&var-search=|View Logs>"
+                        "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZz/logs-app?orgId=1&var-app=${{ inputs.environment}}%2F${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }}&var-search=|View Logs>"
                       }
                     ]
                   },
