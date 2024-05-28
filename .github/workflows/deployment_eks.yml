@@ -461,7 +461,7 @@ jobs:
         id: set-vars
         run: |
           echo "Setting environment variables from JSON input"
-          echo '${{ inputs.inputs_json }}'' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
+          echo '${{ inputs.inputs_json }}' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
             echo "::set-output name=$key::$value"
           done
 
