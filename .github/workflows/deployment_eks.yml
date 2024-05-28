@@ -468,7 +468,7 @@ jobs:
 
       - name: Check inputs
         run: |
-          echo ${{ steps.set-vars.outputs.config_path }}
+          echo ${{ steps.set-vars.outputs.configFile }}
           
       - name: Checkout Generate Config Action Repo
         uses: actions/checkout@v2
