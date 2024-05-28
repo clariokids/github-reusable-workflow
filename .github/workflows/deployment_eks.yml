@@ -136,6 +136,30 @@ on:
         required: false
         default: ''
         type: string
+      repo_name:
+        description: 'Repository Name'
+        required: false
+        default: ''
+        type: string
+      branch_name:
+        description: 'Branch Name'
+        required: false
+        default: ''
+        type: string
+      static_s3_website:
+        description: 'If true will use static website build job'
+        required: false
+        default: false
+        type: boolean
+      use_yarn:
+        description: 'If true will use yarn to build'
+        required: false
+        default: false
+        type: boolean
+      lifetime:
+        description: "Extend environment lifetime value set in hours. The value you set will be added to the initial 4h(ex. value set to 5h, 5+4=9h)"
+        type: string
+        required: false
       inputs_json:
         description: 'Inputs in a json format'
         required: false
@@ -147,12 +171,281 @@ on:
         required: true
       ca_crt:
         required: false
+      DEVOPS_SLACK_BOT_TOKEN:
+        required: false
+      FONTAWESOME_NPM_AUTH_TOKEN:
+        required: false
 
 name: Deployment Pipeline
 jobs:
+  notification:
+    runs-on: [ self-hosted, eks-runner ]
+    name: Notify to Slack
+    outputs:
+      ts: ${{ steps.slack.outputs.ts }}
+    steps:
+    - name: Send notifications to Slack
+      id: slack
+      uses: slackapi/slack-github-action@v1.24.0
+      env:
+        SLACK_BOT_TOKEN: ${{ secrets.DEVOPS_SLACK_BOT_TOKEN }}
+      with:
+        channel-id: 'C05HQDA9L8G' # ID of Slack Channel you want to post to
+        payload: |
+          {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Staging Factory: New deployment for ${{ inputs.repo_name }}*"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Application:* ${{ inputs.repo_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment:* ${{ inputs.environment }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Deployment Status: In progress:hourglass_flowing_sand:"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Github Workflow:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>"
+                    }
+                  ]
+                }
+              ]
+          }
+
+
+  provision-static-website:
+    name: Provision Static Website Resources
+    runs-on: [self-hosted, eks-runner]
+    if: inputs.static_s3_website == true
+    outputs:
+      bucketName: ${{ steps.provision.outputs.bucketName }}
+      cloudfrontID: ${{ steps.provision.outputs.distId }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/disposable-static-website-action
+          token: ${{ secrets.token_github }}
+          ref: main
+          path: .github/actions/disposable-static-website-action
+
+      - name: Provision Resources
+        uses: ./.github/actions/disposable-static-website-action
+        id: provision
+        with:
+          bu: ${{ inputs.bu }}
+          env: ${{ inputs.environment }}
+          assumeRole: "arn:aws:iam::744994327583:role/staging-factory-role"
+          service_name: ${{ inputs.repo_name }}
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: [self-hosted, eks-runner-fe]
+    needs: provision-static-website
+    if: inputs.static_s3_website == true
+    env:
+      FONTAWESOME_NPM_AUTH_TOKEN: ${{ secrets.FONTAWESOME_NPM_AUTH_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.token_github }}
+    steps:
+      - name: Checkout
+        if: inputs.repo_name == ''
+        uses: actions/checkout@v2
+
+      - name: Disposable Env Checkout 
+        if: inputs.repo_name != ''
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/${{ inputs.repo_name }}
+          token: ${{ secrets.token_github }}
+          fetch-depth: 0
+          ref: ${{ inputs.branch_name }}
+
+      - name: Modify config file
+        if: inputs.repo_name != ''
+        run: |
+          CONFIG_FILE="config/development.json"
+          if [ -f "$CONFIG_FILE" ]; then
+                DEV_HOST="https://api-${{ inputs.environment }}.lab.qoalaplus.com"
+                if [ `jq 'has("apiBaseUrlQPlus")' config/development.json` == true ]; then
+                  jq --arg key "apiBaseUrlQPlus" --arg value "$DEV_HOST" \
+                  '.[$key]=$value' "config/development.json" > temp.json && mv temp.json config/development.json
+                  echo "Updated $CONFIG_FILE"
+                  cat $CONFIG_FILE
+                else
+                  jq --arg key "apiBaseUrl" --arg value "$DEV_HOST" \
+                  '.[$key]=$value' "config/development.json" > temp.json && mv temp.json config/development.json
+                  echo "Updated $CONFIG_FILE"
+                  cat $CONFIG_FILE
+                fi
+                '.[$key]=$value' "config/development.json" > temp.json && mv temp.json config/development.json
+                echo "Updated $CONFIG_FILE"
+                cat $CONFIG_FILE
+          else
+            echo "No files updated"
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ap-southeast-1
+          role-to-assume: arn:aws:iam::744994327583:role/eks-qoala-dev-cluster-ci-role
+          role-duration-seconds: 3600
+      - name: Set node version
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+          cache: 'npm'
+        env:
+          GITHUB_TOKEN: ${{ secrets.token_github }}
+
+      - name: Setup yarn
+        if: inputs.use_yarn == true
+        run: npm install -g yarn
+      - name: Set node version for yarn
+        if: inputs.use_yarn == true
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+          cache: 'yarn'
+        env:
+          GITHUB_TOKEN: ${{ secrets.token_github }}
+
+      - name: Checkout S3 Action V2 Repo
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/s3-deploy-action
+          ref: 'v2'
+          token: ${{ secrets.token_github }} # stored in GitHub secrets
+          path: .github/actions/s3-deploy-action-v2
+
+      - name: Install dependencies
+        if: inputs.use_yarn == false
+        run: |
+          npm install
+          npm ci
+      - name: Project build
+        if: inputs.use_yarn == false
+        run: npm run build:staging
+
+      - name: Yarn install and build
+        if: inputs.use_yarn == true
+        run: |
+          yarn install
+          yarn run build:staging
+        env:
+          GITHUB_TOKEN: ${{ secrets.token_github }}
+
+      - name: Deploy to S3
+        id: website-deployment
+        uses: ./.github/actions/s3-deploy-action-v2
+        with:
+          region: ap-southeast-1
+          source: ./dist
+          bucket: ${{ needs.provision-static-website.outputs.bucketName }}
+          cloudfront-dist-id: ${{ needs.provision-static-website.outputs.cloudfrontID }}
+          modifiers: |
+            [
+              {
+                "pattern": "*.+(js|css|png|svg|eot|ttf|woff|woff2)",
+                "cache_control": "public, max-age=31536000, must-revalidate"
+              }
+            ]
+        env:
+          GITHUB_TOKEN: ${{ secrets.token_github }}
+          NODE_OPTIONS: '--max_old_space_size=8192'
+
+      - name: Update status frontend
+        if: ${{ steps.website-deployment.conclusion }} == 'success'
+        id: slack
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.DEVOPS_SLACK_BOT_TOKEN }}
+        with:
+          channel-id: 'C05HQDA9L8G' # ID of Slack Channel you want to post to
+          update-ts: ${{ needs.notification.outputs.ts }}
+          payload: |
+            {
+                "blocks": [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "*Staging Factory: New Environment for ${{ inputs.repo_name }}*"
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Application:* ${{ inputs.repo_name }}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Environment:* ${{ inputs.environment }}"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "divider"
+                  },
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "Deployment Status: Success :white_check_mark:"
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Host URL:* https://${{ needs.provision-static-website.outputs.bucketName }}"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Github Workflow:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>"
+                      }
+                    ]
+                  }
+                ]
+            }
+
   config: 
     name: Generate Config 
+    needs: [ notification ]
     runs-on: [ self-hosted, eks-runner ]
+    if: inputs.static_s3_website == false
     outputs:
       environment: ${{ steps.config.outputs.environment }}
       eks_cluster: ${{ steps.config.outputs.eks_cluster }}
@@ -183,6 +476,7 @@ jobs:
           repository: qoala-engineering/generate-config-action
           token: ${{ secrets.token_github }}
           path: .github/actions/generate-config-action
+          ref: staging-factory-feature
       
       - name: Generate Config
         uses: ./.github/actions/generate-config-action
@@ -198,6 +492,7 @@ jobs:
     name: DB Migration
     needs: config
     runs-on: [ self-hosted, eks-runner ]
+    if: inputs.static_s3_website == false
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -252,12 +547,39 @@ jobs:
     name: Build Image
     needs: [ config, db_migration ]
     runs-on: [ self-hosted, eks-runner ]
+    if: inputs.static_s3_website == false
     outputs:
       image_registry: ${{ steps.publish_image.outputs.image_registry }}
       image_tag: ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
     steps:
       - name: Checkout
+        if: inputs.repo_name == ''
         uses: actions/checkout@v2
+
+      - name: Disposable Env Checkout 
+        if: inputs.repo_name != ''
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/${{ inputs.repo_name }}
+          token: ${{ secrets.token_github }}
+          ref: ${{ inputs.branch_name }}
+
+      - name: Modify config file
+        if: inputs.repo_name != ''
+        run: |
+          GO_FILE_PATH="app.config.dev.yml"
+          NODE_FILE_PATH="src/config/app.config.js"
+          if [ -f "$GO_FILE_PATH" ]; then
+                cp app.config.lab.yml $GO_FILE_PATH
+                echo "Updated $GO_FILE_PATH"
+                cat $GO_FILE_PATH
+          elif [ -f "$NODE_FILE_PATH" ]; then
+                cp src/config/app.config.lab.js $NODE_FILE_PATH
+                echo "Updated $NODE_FILE_PATH"
+                cat $NODE_FILE_PATH
+          else
+            echo "No files updated"
+          fi
 
       - name: Checkout ECR Publish GitHub Action Repo
         uses: actions/checkout@v2
@@ -290,11 +612,41 @@ jobs:
 
   deploy:
     name: Deploy Service
-    needs: [ config, build ]
+    needs: [ config, build, notification ]
     runs-on: [self-hosted, eks-runner]
+    if: inputs.static_s3_website == false
     steps:
       - name: Checkout
+        if: inputs.repo_name == ''
         uses: actions/checkout@v2
+
+      - name: Disposable Env Checkout 
+        if: inputs.repo_name != ''
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/${{ inputs.repo_name }}
+          token: ${{ secrets.token_github }}
+          ref: ${{ inputs.branch_name }}
+
+      - name: Checkout SSM Injection
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/helm-values-ssm-injection
+          token: ${{ secrets.token_github }}
+          path: .github/actions/helm-values-ssm-injection
+          ref: staging-factory-feature
+      
+      - name: SSM Injection
+        id: values
+        uses: ./.github/actions/helm-values-ssm-injection
+        with:
+          image: ${{ needs.build.outputs.image_registry }}/${{ inputs.ecr_name || inputs.service_name }}:${{ needs.build.outputs.image_tag }}
+          environment: ${{ (inputs.consumer == true && format('{0}-{1}', needs.config.outputs.environment, 'consumer')) || needs.config.outputs.environment}}
+          configPath: ${{ inputs.config_path }}
+          serviceName: ${{ inputs.service_name }}
+          bu: ${{ inputs.bu }}
+          assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
+          consumer: ${{ inputs.consumer }}
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
@@ -302,6 +654,7 @@ jobs:
           repository: qoala-engineering/setup-eks-helm-action
           token: ${{ secrets.token_github }}
           path: .github/actions/setup-eks-helm-action
+          ref: staging-factory-feature
 
       - uses: ./.github/actions/setup-eks-helm-action
         with:
@@ -309,27 +662,90 @@ jobs:
           role-to-assume: ${{ needs.config.outputs.deploy_role_arn }}
           github-token: ${{ secrets.token_github }}
           cluster-name: ${{ needs.config.outputs.eks_cluster }}
-      
-      - name: Checkout SSM Injection
-        uses: actions/checkout@v2
-        with:
-          repository: qoala-engineering/helm-values-ssm-injection
-          token: ${{ secrets.token_github }}
-          path: .github/actions/helm-values-ssm-injection
-      
-      - name: SSM Injection
-        id: values
-        uses: ./.github/actions/helm-values-ssm-injection
-        with:
-          image: ${{ needs.build.outputs.image_registry }}/${{ inputs.ecr_name || inputs.service_name }}:${{ needs.build.outputs.image_tag }}
-          environment: ${{ (inputs.consumer == true && format('{0}_{1}', needs.config.outputs.environment, 'consumer')) || needs.config.outputs.environment}}
-          configPath: ${{ inputs.config_path }}
-          serviceName: ${{ inputs.service_name }}
  
       - name: Deploy service
+        id: helm
         shell: bash
         run: |
-          helm upgrade --install --atomic --wait --namespace ${{ needs.config.outputs.namespace }} --create-namespace ${{ inputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
+          if grep -A3 'stagingFactory:' ${{ steps.values.outputs.values }} | tail -n1 | cut -c 12- | grep -q "true"; then
+            kubectl annotate --overwrite namespace $env_name staging-factory=true
+          fi
+
+      - name: Extend env lifetime
+        shell: bash
+        if: ${{ inputs.lifetime }} != ''
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          kubectl annotate --overwrite namespace $env_name staging-facroty/extend=${{ inputs.lifetime }}
+
+      - name: Update status
+        if: ${{ steps.helm.conclusion }} == 'success'
+        id: slack
+        uses: slackapi/slack-github-action@v1.24.0
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.DEVOPS_SLACK_BOT_TOKEN }}
+        with:
+          channel-id: 'C05HQDA9L8G' # ID of Slack Channel you want to post to
+          update-ts: ${{ needs.notification.outputs.ts }}
+          payload: |
+            {
+                "blocks": [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "*Staging Factory: New Environment for ${{ inputs.repo_name }}*"
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Application:* ${{ inputs.repo_name }}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Environment:* ${{ inputs.environment }}"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "divider"
+                  },
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "Deployment Status: Success :white_check_mark:"
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*API Host:* https://${{ steps.values.outputs.host }}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZz/logs-app?orgId=1&var-app=${{ inputs.environment}}%2F${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }}&var-search=|View Logs>"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Github Workflow:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>"
+                      }
+                    ]
+                  }
+                ]
+            }
 
   regression_test:
     name: Regression Test
