@@ -136,6 +136,11 @@ on:
         required: false
         default: ''
         type: string
+      inputs_json:
+        description: 'Inputs in a json format'
+        required: false
+        default: ''
+        type: string
       
     secrets:
       token_github:
@@ -159,6 +164,23 @@ jobs:
       ssm_path: ${{ steps.config.outputs.ssm_path }}
       node_env: ${{ steps.config.outputs.node_env }}
     steps:
+      - name: Set inputs as variables
+        id: set-vars
+        run: |
+          echo "Setting environment variables from JSON input"
+          output_string=""
+          echo ${{ inputs.inputs_json }} | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
+            echo "::set-output name=$key::$value"
+          done
+
+      - name: Check inputs
+        id: set-vars
+        run: |
+          echo "Setting environment variables from JSON input"
+          output_string=""
+          echo ${{ inputs.inputs_json }} | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
+            echo ${{ steps.set-vars.outputs.$key }}
+          done
       - name: Checkout Generate Config Action Repo
         uses: actions/checkout@v2
         with:
