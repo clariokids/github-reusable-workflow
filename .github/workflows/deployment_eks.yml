@@ -708,7 +708,16 @@ jobs:
     if: inputs.static_s3_website == false && needs.config.outputs.db_conf
     steps:
       - name: Checkout
+        if: inputs.repo_name == ''
         uses: actions/checkout@v2
+
+      - name: Disposable Env Checkout 
+        if: inputs.repo_name != ''
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/${{ inputs.repo_name }}
+          token: ${{ secrets.token_github }}
+          ref: ${{ inputs.branch_name }}
 
       - name: Set inputs as variables
         id: db-vars
