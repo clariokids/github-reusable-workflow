@@ -484,64 +484,9 @@ jobs:
           ssm_folder: ${{ inputs.ssm_folder }}
           allowed_branches: ${{ inputs.allowed_branches }}
 
-  db_migration:
-    name: DB Migration
-    needs: config
-    runs-on: [ self-hosted, eks-runner ]
-    if: inputs.static_s3_website == false
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      
-      - name: Checkout Goose Migration Action Repo
-        if: inputs.with_db_migration == true && inputs.lang == 'golang'
-        uses: actions/checkout@v2
-        with:
-          repository: qoala-engineering/goose-migration-action
-          token: ${{ secrets.token_github }}
-          path: .github/actions/goose-migration-action
-          ref: improve/action
-
-      - uses: ./.github/actions/goose-migration-action
-        if: inputs.with_db_migration == true && inputs.lang == 'golang'
-        with:
-          role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
-          parameter_path: ${{ needs.config.outputs.ssm_path }}
-          db_name_key: ${{ inputs.db_name_key }}
-          db_host_key: ${{ inputs.db_host_key }}
-          db_user_key: ${{ inputs.db_user_key }}
-          db_password_key: ${{ inputs.db_password_key }}
-          db_migration_path: ${{ inputs.db_migration_path }}
-          with_seeder: ${{ inputs.with_seeder }}
-          db_seeder_path: ${{ inputs.db_seeder_path }}
-          go_version: ${{ inputs.go_version }}
-      
-      - name: Checkout Knex Migration Action Repo
-        if: inputs.with_db_migration == true && inputs.lang == 'nodejs'
-        uses: actions/checkout@v2
-        with:
-          repository: qoala-engineering/knex-migration-action
-          token: ${{ secrets.token_github }}
-          path: .github/actions/knex-migration-action
-          ref: improve/action
-
-      - uses: ./.github/actions/knex-migration-action
-        if: inputs.with_db_migration == true && inputs.lang == 'nodejs'
-        env:
-          NODE_ENV: ${{ needs.config.outputs.node_env }}
-        with:
-          role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
-          parameter_path: ${{ needs.config.outputs.ssm_path }}
-          db_name_key: ${{ inputs.db_name_key }}
-          db_host_key: ${{ inputs.db_host_key }}
-          db_user_key: ${{ inputs.db_user_key }}
-          db_password_key: ${{ inputs.db_password_key }}
-          with_seeder: ${{ inputs.with_seeder }}
-          node_version: ${{ inputs.node_version }}
-
   build:
     name: Build Image
-    needs: [ config, db_migration ]
+    needs: [ config ]
     runs-on: [ self-hosted, eks-runner ]
     if: inputs.static_s3_website == false
     outputs:
@@ -563,6 +508,8 @@ jobs:
       - name: Modify config file
         if: inputs.repo_name != ''
         run: |
+          echo ${{ needs.config.outputs.db }}
+          echo ${{ needs.config.outputs.db.enabled }}
           GO_FILE_PATH="app.config.dev.yml"
           NODE_FILE_PATH="src/config/app.config.js"
           if [ -f "$GO_FILE_PATH" ]; then
@@ -677,6 +624,13 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           kubectl annotate --overwrite namespace $env_name staging-facroty/extend=${{ inputs.lifetime }}
 
+      - name: Fetch Database IP
+        shell: bash
+        if: ${{ needs.config.outputs.namespace }} != ''
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          kubectl annotate --overwrite namespace $env_name staging-facroty/extend=${{ inputs.lifetime }}
+
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
         id: slack
@@ -743,6 +697,62 @@ jobs:
                   }
                 ]
             }
+
+  db_migration:
+    name: DB Migration
+    needs: [config,  deploy]
+    runs-on: [ self-hosted, eks-runner ]
+    if: inputs.static_s3_website == false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      
+      - name: Checkout Goose Migration Action Repo
+        if: inputs.with_db_migration == true && inputs.lang == 'golang'
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/goose-migration-action
+          token: ${{ secrets.token_github }}
+          path: .github/actions/goose-migration-action
+          ref: improve/action
+
+      - uses: ./.github/actions/goose-migration-action
+        if: inputs.with_db_migration == true && inputs.lang == 'golang'
+        with:
+          role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
+          parameter_path: ${{ needs.config.outputs.ssm_path }}
+          db_name_key: ${{ inputs.db_name_key }}
+          db_host_key: ${{ inputs.db_host_key }}
+          db_user_key: ${{ inputs.db_user_key }}
+          db_password_key: ${{ inputs.db_password_key }}
+          db_migration_path: ${{ inputs.db_migration_path }}
+          with_seeder: ${{ inputs.with_seeder }}
+          db_seeder_path: ${{ inputs.db_seeder_path }}
+          go_version: ${{ inputs.go_version }}
+      
+      - name: Checkout Knex Migration Action Repo
+        if: inputs.with_db_migration == true && inputs.lang == 'nodejs'
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/knex-migration-action
+          token: ${{ secrets.token_github }}
+          path: .github/actions/knex-migration-action
+          ref: improve/action
+
+      - uses: ./.github/actions/knex-migration-action
+        if: inputs.with_db_migration == true && inputs.lang == 'nodejs'
+        env:
+          NODE_ENV: ${{ needs.config.outputs.node_env }}
+        with:
+          role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
+          parameter_path: ${{ needs.config.outputs.ssm_path }}
+          db_name_key: ${{ inputs.db_name_key }}
+          db_host_key: ${{ inputs.db_host_key }}
+          db_user_key: ${{ inputs.db_user_key }}
+          db_password_key: ${{ inputs.db_password_key }}
+          with_seeder: ${{ inputs.with_seeder }}
+          node_version: ${{ inputs.node_version }}
+
 
   regression_test:
     name: Regression Test
