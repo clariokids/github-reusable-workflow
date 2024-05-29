@@ -509,8 +509,6 @@ jobs:
       - name: Modify config file
         if: inputs.repo_name != ''
         run: |
-          echo ${{ needs.config.outputs.db_conf }}
-          echo ${{ fromJSON(needs.config.outputs.db_conf.enabled) }}
           GO_FILE_PATH="app.config.dev.yml"
           NODE_FILE_PATH="src/config/app.config.js"
           if [ -f "$GO_FILE_PATH" ]; then
@@ -559,6 +557,8 @@ jobs:
     needs: [ config, build, notification ]
     runs-on: [self-hosted, eks-runner]
     if: inputs.static_s3_website == false
+    outputs:
+      db_host: ${{ steps.fetchIp.outputs.DB_HOST }}
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -627,10 +627,12 @@ jobs:
 
       - name: Fetch Database IP
         shell: bash
-        if: ${{ needs.config.outputs.namespace }} != ''
+        id: fetchIp
+        if: ${{ needs.config.outputs.db_conf }}
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          kubectl annotate --overwrite namespace $env_name staging-facroty/extend=${{ inputs.lifetime }}
+          DB_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "DB_HOST=$DB_HOST" >> $GITHUB_OUTPUT
 
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
@@ -703,36 +705,45 @@ jobs:
     name: DB Migration
     needs: [config,  deploy]
     runs-on: [ self-hosted, eks-runner ]
-    if: inputs.static_s3_website == false
+    if: inputs.static_s3_website == false && needs.config.outputs.db_conf
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       
       - name: Checkout Goose Migration Action Repo
-        if: inputs.with_db_migration == true && inputs.lang == 'golang'
+        if: inputs.lang == 'golang'
         uses: actions/checkout@v2
         with:
           repository: qoala-engineering/goose-migration-action
           token: ${{ secrets.token_github }}
           path: .github/actions/goose-migration-action
-          ref: improve/action
+          ref: staging-factory
+
+      - name: Set inputs as variables
+        id: db-vars
+        run: |
+          echo "Setting environment variables from JSON input"
+          echo '${{ needs.config.outputs.db_conf }}' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
+            echo "$key=$value"
+            echo "$key=$value" >> $GITHUB_OUTPUT
+          done
 
       - uses: ./.github/actions/goose-migration-action
-        if: inputs.with_db_migration == true && inputs.lang == 'golang'
+        if: inputs.lang == 'golang'
         with:
           role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
           parameter_path: ${{ needs.config.outputs.ssm_path }}
-          db_name_key: ${{ inputs.db_name_key }}
-          db_host_key: ${{ inputs.db_host_key }}
-          db_user_key: ${{ inputs.db_user_key }}
-          db_password_key: ${{ inputs.db_password_key }}
+          db_name_key: ${{ steps.db-vars.outputs.name }}
+          db_host_key: ${{ needs.deploy.outputs.db_host }}
+          db_user_key: 'root'
+          db_password_key: '12345'
           db_migration_path: ${{ inputs.db_migration_path }}
           with_seeder: ${{ inputs.with_seeder }}
           db_seeder_path: ${{ inputs.db_seeder_path }}
           go_version: ${{ inputs.go_version }}
       
       - name: Checkout Knex Migration Action Repo
-        if: inputs.with_db_migration == true && inputs.lang == 'nodejs'
+        if: inputs.lang == 'nodejs'
         uses: actions/checkout@v2
         with:
           repository: qoala-engineering/knex-migration-action
@@ -741,7 +752,7 @@ jobs:
           ref: improve/action
 
       - uses: ./.github/actions/knex-migration-action
-        if: inputs.with_db_migration == true && inputs.lang == 'nodejs'
+        if: inputs.lang == 'nodejs'
         env:
           NODE_ENV: ${{ needs.config.outputs.node_env }}
         with:
