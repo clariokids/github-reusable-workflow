@@ -456,6 +456,7 @@ jobs:
       ssm_role_arn: ${{ steps.config.outputs.ssm_role_arn }}
       ssm_path: ${{ steps.config.outputs.ssm_path }}
       node_env: ${{ steps.config.outputs.node_env }}
+      db_conf: ${{ steps.set-vars.outputs.db }}
     steps:
       - name: Set inputs as variables
         id: set-vars
