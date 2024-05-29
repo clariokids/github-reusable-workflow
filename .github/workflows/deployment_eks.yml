@@ -510,7 +510,7 @@ jobs:
         if: inputs.repo_name != ''
         run: |
           echo ${{ needs.config.outputs.db_conf }}
-          echo ${{ needs.config.outputs.db_conf.enabled }}
+          echo ${{ fromJSON(needs.config.outputs.db_conf.enabled) }}
           GO_FILE_PATH="app.config.dev.yml"
           NODE_FILE_PATH="src/config/app.config.js"
           if [ -f "$GO_FILE_PATH" ]; then
