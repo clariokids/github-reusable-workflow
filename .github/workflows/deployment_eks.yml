@@ -457,6 +457,7 @@ jobs:
       ssm_path: ${{ steps.config.outputs.ssm_path }}
       node_env: ${{ steps.config.outputs.node_env }}
       db_conf: ${{ steps.set-vars.outputs.db }}
+      dockerfile: ${{ steps.set-vars.outputs.dockerfile }}
     steps:
       - name: Set inputs as variables
         id: set-vars
@@ -543,7 +544,7 @@ jobs:
           aws-region: ${{ needs.config.outputs.aws_region }}
           ecr_name: ${{ inputs.ecr_name || inputs.service_name}}
           role-to-assume: ${{ needs.config.outputs.build_role_arn }}
-          dockerfile: ${{ (inputs.dockerfile != '' && inputs.dockerfile) || 'Dockerfile' }}
+          dockerfile: ${{ (needs.config.outputs.dockerfile != '' && needs.config.outputs.dockerfile) || 'Dockerfile' }}
           ecr_cache_tag: ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment) }}
           build_args: |
             GITHUB_TOKEN=${{ secrets.token_github }}
