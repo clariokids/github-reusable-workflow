@@ -555,8 +555,8 @@ jobs:
 
    
   check_db_deploy: 
-    name: Generate Config 
-    needs: [ notification ]
+    name: Check DB Deploy 
+    needs: [ config ]
     runs-on: [ self-hosted, eks-runner ]
     if: inputs.static_s3_website == false
     outputs:
@@ -574,7 +574,7 @@ jobs:
 
   deploy:
     name: Deploy Service
-    needs: [ config, build, notification ]
+    needs: [ config, build, notification, check_db_deploy ]
     runs-on: [self-hosted, eks-runner]
     if: inputs.static_s3_website == false
     outputs:
@@ -723,7 +723,7 @@ jobs:
 
   db_migration:
     name: DB Migration
-    needs: [config,  deploy]
+    needs: [config,  deploy, check_db_deploy]
     runs-on: [ self-hosted, eks-runner ]
     if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql == true
     steps:
