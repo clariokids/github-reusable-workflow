@@ -648,7 +648,7 @@ jobs:
       - name: Fetch Database IP
         shell: bash
         id: fetchIp
-        if: ${{ needs.config.outputs.db_conf }}
+        if: needs.check_db_deploy.outputs.deploy_mysql == true
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           DB_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
