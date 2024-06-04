@@ -553,6 +553,25 @@ jobs:
             ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment)}}
             ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
 
+   
+  check_db_deploy: 
+    name: Generate Config 
+    needs: [ notification ]
+    runs-on: [ self-hosted, eks-runner ]
+    if: inputs.static_s3_website == false
+    outputs:
+      deploy_mysql: ${{ steps.db-vars.outputs.deploy_mysql }}
+      deply_mongo: ${{ steps.db-vars.outputs.deploy_mongo }}
+    steps:
+      - name: Set inputs as variables
+        id: db-vars
+        run: |
+          echo "Setting environment variables from JSON input"
+          echo '${{ needs.config.outputs.db_conf }}' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
+            echo "$key=$value"
+            echo "$key=$value" >> $GITHUB_OUTPUT
+          done
+
   deploy:
     name: Deploy Service
     needs: [ config, build, notification ]
@@ -706,7 +725,7 @@ jobs:
     name: DB Migration
     needs: [config,  deploy]
     runs-on: [ self-hosted, eks-runner ]
-    if: inputs.static_s3_website == false && needs.config.outputs.db_conf
+    if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql == true
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
