@@ -795,6 +795,13 @@ jobs:
           with_seeder: ${{ inputs.with_seeder }}
           node_version: ${{ inputs.node_version }}
 
+      - name: DB Migration Python
+        if: steps.db-vars.outputs.lang == 'python'
+        id: status_db_migration
+        shell: bash
+        run: |
+          dbmate -u "mysql://root:12345@${{ needs.deploy.outputs.db_host }}:3306/${{ steps.db-vars.outputs.name }}" -d ${{ steps.db-vars.outputs.migrationPath }} --no-dump-schema up
+
 
   regression_test:
     name: Regression Test
