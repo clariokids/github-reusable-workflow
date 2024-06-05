@@ -648,7 +648,7 @@ jobs:
       - name: Fetch Database IP
         shell: bash
         id: fetchIp
-        if: needs.check_db_deploy.outputs.deploy_mysql
+        if: needs.check_db_deploy.outputs.deploy_mysql == 'true'
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           DB_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
@@ -725,7 +725,7 @@ jobs:
     name: DB Migration
     needs: [config,  deploy, check_db_deploy]
     runs-on: [ self-hosted, eks-runner ]
-    if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql
+    if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql == 'true'
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
