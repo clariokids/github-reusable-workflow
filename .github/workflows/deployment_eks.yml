@@ -578,7 +578,9 @@ jobs:
     runs-on: [self-hosted, eks-runner]
     if: inputs.static_s3_website == false
     outputs:
-      db_host: ${{ steps.fetchIp.outputs.DB_HOST }}
+      mysql_host: ${{ steps.fetchIp.outputs.MYSQL_HOST }}
+      mongo_host: ${{ steps.fetchIp.outputs.MONGO_HOST }}
+      redis_host: ${{ steps.fetchIp.outputs.REDIS_HOST }}
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -648,12 +650,24 @@ jobs:
       - name: Fetch Database IP
         shell: bash
         id: fetchIp
-        if: needs.check_db_deploy.outputs.deploy_mysql == 'true'
+        if: needs.check_db_deploy.outputs.deploy_mysql == 'true' || needs.check_db_deploy.outputs.deploy_mongo == 'true' || needs.check_db_deploy.outputs.deploy_redis == 'true'
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          DB_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
-          echo "DB_HOST=$DB_HOST" >> $GITHUB_OUTPUT
+          if [[ "${{ needs.check_db_deploy.outputs.deploy_mysql }}" == 'true' ]]; then
+            MYSQL_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
+            echo "MYSQL_HOST=$MYSQL_HOST" >> $GITHUB_ENV
+          fi
 
+          if [[ "${{ needs.check_db_deploy.outputs.deploy_mongo }}" == 'true' ]]; then
+            MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
+            echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_ENV
+          fi
+
+          if [[ "${{ needs.check_db_deploy.outputs.deploy_redis }}" == 'true' ]]; then
+            REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
+            echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_ENV
+          fi
+          
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
         id: slack
@@ -706,7 +720,25 @@ jobs:
                       {
                         "type": "mrkdwn",
                         "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZz/logs-app?orgId=1&var-app=${{ inputs.environment}}%2F${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }}&var-search=|View Logs>"
-                      }
+                      },
+                      {% if needs.check_db_deploy.outputs.deploy_mysql == 'true' %}
+                      {
+                        "type": "mrkdwn",
+                        "text": "Mysql Host - ${{ needs.deploy.outputs.mysql_host }}"
+                      },
+                      {% endif %}
+                      {% if needs.check_db_deploy.outputs.deploy_mongo == 'true' %}
+                      {
+                        "type": "mrkdwn",
+                        "text": "Mongo Host - ${{ needs.deploy.outputs.mongo_host }}"
+                      },
+                      {% endif %}
+                      {% if needs.check_db_deploy.outputs.deploy_redis == 'true' %}
+                      {
+                        "type": "mrkdwn",
+                        "text": "Redis Host - ${{ needs.deploy.outputs.redis_host }}"
+                      },
+                      {% endif %}
                     ]
                   },
                   {
@@ -743,7 +775,7 @@ jobs:
         id: db-vars
         run: |
           echo "Setting environment variables from JSON input"
-          echo ${{ needs.deploy.outputs.db_host }}
+          echo ${{ needs.deploy.outputs.mysql_host }}
           echo '${{ needs.config.outputs.db_conf }}' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
             echo "$key=$value"
             echo "$key=$value" >> $GITHUB_OUTPUT
@@ -764,7 +796,7 @@ jobs:
           role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
           parameter_path: ${{ needs.config.outputs.ssm_path }}
           db_name_key: ${{ steps.db-vars.outputs.name }}
-          db_host_key: ${{ needs.deploy.outputs.db_host }}
+          db_host_key: ${{ needs.deploy.outputs.mysql_host }}
           db_user_key: 'root'
           db_password_key: '12345'
           db_migration_path: ${{ steps.db-vars.outputs.migrationPath }}
@@ -800,7 +832,7 @@ jobs:
         id: status_db_migration
         shell: bash
         run: |
-          dbmate -u "mysql://root:12345@${{ needs.deploy.outputs.db_host }}:3306/${{ steps.db-vars.outputs.name }}" -d ${{ steps.db-vars.outputs.migrationPath }} --no-dump-schema up
+          dbmate -u "mysql://root:12345@${{ needs.deploy.outputs.mysql_host }}:3306/${{ steps.db-vars.outputs.name }}" -d ${{ steps.db-vars.outputs.migrationPath }} --no-dump-schema up
 
 
   regression_test:
