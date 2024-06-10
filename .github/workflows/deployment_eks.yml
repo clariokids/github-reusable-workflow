@@ -654,7 +654,7 @@ jobs:
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           MYSQL_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
-          echo "MYSQL_HOST=$MYSQL_HOST" >> $GITHUB_ENV
+          echo "MYSQL_HOST=$MYSQL_HOST" >> $GITHUB_OUTPUT
 
       - name: Fetch MongoDB IP
         shell: bash
@@ -663,7 +663,7 @@ jobs:
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
-          echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_ENV
+          echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_OUTPUT
 
       - name: Fetch Redis IP
         shell: bash
@@ -672,7 +672,7 @@ jobs:
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
-          echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_ENV
+          echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
           
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
