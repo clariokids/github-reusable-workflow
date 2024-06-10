@@ -721,24 +721,18 @@ jobs:
                         "type": "mrkdwn",
                         "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZz/logs-app?orgId=1&var-app=${{ inputs.environment}}%2F${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }}&var-search=|View Logs>"
                       },
-                      {% if needs.check_db_deploy.outputs.deploy_mysql == 'true' %}
                       {
                         "type": "mrkdwn",
                         "text": "Mysql Host - ${{ needs.deploy.outputs.mysql_host }}"
                       },
-                      {% endif %}
-                      {% if needs.check_db_deploy.outputs.deploy_mongo == 'true' %}
                       {
                         "type": "mrkdwn",
                         "text": "Mongo Host - ${{ needs.deploy.outputs.mongo_host }}"
                       },
-                      {% endif %}
-                      {% if needs.check_db_deploy.outputs.deploy_redis == 'true' %}
                       {
                         "type": "mrkdwn",
                         "text": "Redis Host - ${{ needs.deploy.outputs.redis_host }}"
-                      },
-                      {% endif %}
+                      }
                     ]
                   },
                   {
