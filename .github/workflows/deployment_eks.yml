@@ -729,7 +729,7 @@ jobs:
                       },
                       {
                         "type": "mrkdwn",
-                        "text": "*DB Hosts:* Mysql- $MYSQL_HOST, Mongo- $MONGO_HOST, Redis- $REDIS_HOST"
+                        "text": "*DB Hosts:* Mysql- ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }}, Mongo- ${{ steps.fetchMongoIp.outputs.MONGO_HOST }}, Redis- ${{ steps.fetchRedisIp.outputs.REDIS_HOST }}"
                       }
                     ]
                   },
