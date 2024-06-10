@@ -578,9 +578,9 @@ jobs:
     runs-on: [self-hosted, eks-runner]
     if: inputs.static_s3_website == false
     outputs:
-      mysql_host: ${{ steps.fetchIp.outputs.MYSQL_HOST }}
-      mongo_host: ${{ steps.fetchIp.outputs.MONGO_HOST }}
-      redis_host: ${{ steps.fetchIp.outputs.REDIS_HOST }}
+      mysql_host: ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }}
+      mongo_host: ${{ steps.fetchMongoIp.outputs.MONGO_HOST }}
+      redis_host: ${{ steps.fetchRedisIp.outputs.REDIS_HOST }}
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -647,26 +647,32 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           kubectl annotate --overwrite namespace $env_name staging-facroty/extend=${{ inputs.lifetime }}
 
-      - name: Fetch Database IP
+      - name: Fetch MySQL IP
         shell: bash
-        id: fetchIp
-        if: needs.check_db_deploy.outputs.deploy_mysql == 'true' || needs.check_db_deploy.outputs.deploy_mongo == 'true' || needs.check_db_deploy.outputs.deploy_redis == 'true'
+        id: fetchMysqlIp
+        if: needs.check_db_deploy.outputs.deploy_mysql == 'true'
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          if [[ "${{ needs.check_db_deploy.outputs.deploy_mysql }}" == 'true' ]]; then
-            MYSQL_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
-            echo "MYSQL_HOST=$MYSQL_HOST" >> $GITHUB_ENV
-          fi
+          MYSQL_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "MYSQL_HOST=$MYSQL_HOST" >> $GITHUB_ENV
 
-          if [[ "${{ needs.check_db_deploy.outputs.deploy_mongo }}" == 'true' ]]; then
-            MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
-            echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_ENV
-          fi
+      - name: Fetch MongoDB IP
+        shell: bash
+        id: fetchMongoIp
+        if: needs.check_db_deploy.outputs.deploy_mongo == 'true'
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_ENV
 
-          if [[ "${{ needs.check_db_deploy.outputs.deploy_redis }}" == 'true' ]]; then
-            REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
-            echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_ENV
-          fi
+      - name: Fetch Redis IP
+        shell: bash
+        id: fetchRedisIp
+        if: needs.check_db_deploy.outputs.deploy_redis == 'true'
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_ENV
           
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
@@ -723,15 +729,7 @@ jobs:
                       },
                       {
                         "type": "mrkdwn",
-                        "text": "Mysql Host - ${{ needs.deploy.outputs.mysql_host }}"
-                      },
-                      {
-                        "type": "mrkdwn",
-                        "text": "Mongo Host - ${{ needs.deploy.outputs.mongo_host }}"
-                      },
-                      {
-                        "type": "mrkdwn",
-                        "text": "Redis Host - ${{ needs.deploy.outputs.redis_host }}"
+                        "text": "*DB Hosts:* Mysql- $MYSQL_HOST, Mongo- $MONGO_HOST, Redis- $REDIS_HOST"
                       }
                     ]
                   },
