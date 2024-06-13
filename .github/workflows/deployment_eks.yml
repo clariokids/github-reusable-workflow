@@ -250,7 +250,7 @@ jobs:
         with:
           repository: qoala-engineering/disposable-static-website-action
           token: ${{ secrets.token_github }}
-          ref: main
+          ref: onboard-platform
           path: .github/actions/disposable-static-website-action
 
       - name: Provision Resources
