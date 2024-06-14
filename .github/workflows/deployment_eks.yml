@@ -638,11 +638,12 @@ jobs:
         uses: ./.github/actions/helm-values-ssm-injection
         with:
           image: ${{ needs.build.outputs.image_registry }}/${{ inputs.ecr_name || inputs.service_name }}:${{ needs.build.outputs.image_tag }}
-          environment: ${{ (inputs.consumer == true && format('{0}_{1}', needs.config.outputs.environment, 'consumer')) || needs.config.outputs.environment}}
+          environment: ${{ (inputs.consumer == true && format('{0}-{1}', needs.config.outputs.environment, 'consumer')) || needs.config.outputs.environment}}
           configPath: ${{ inputs.config_path }}
           serviceName: ${{ inputs.service_name }}
           bu: ${{ inputs.bu }}
           assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
+          consumer: ${{ inputs.consumer }}
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
@@ -664,7 +665,7 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ inputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
+          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
           if grep -A3 'stagingFactory:' ${{ steps.values.outputs.values }} | tail -n1 | cut -c 12- | grep -q "true"; then
             kubectl annotate --overwrite namespace $env_name staging-factory=true
           fi
@@ -727,7 +728,7 @@ jobs:
                       },
                       {
                         "type": "mrkdwn",
-                        "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZz/logs-app?orgId=1&var-app=${{ inputs.environment}}%2F${{ inputs.service_name }}&var-search=|View Logs>"
+                        "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZz/logs-app?orgId=1&var-app=${{ inputs.environment}}%2F${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }}&var-search=|View Logs>"
                       }
                     ]
                   },
