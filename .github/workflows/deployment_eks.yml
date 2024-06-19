@@ -783,6 +783,7 @@ jobs:
         shell: bash
         run: |
           # Replace <S3_BUCKET_NAME> and <DB_DUMP_FILE_NAME> with your actual values
+          sudo apt-get update -y
           sudo apt-get install mysql-client -y
           aws s3 cp s3://mysql-dump-workflow/unified_quotation_service_uat.sql - | mysql -h ${{ needs.deploy.outputs.mysql_host }} -uroot -p12345 ${{ steps.db-vars.outputs.name }}
 
