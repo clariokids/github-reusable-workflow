@@ -772,11 +772,18 @@ jobs:
             echo "$key=$value"
             echo "$key=$value" >> $GITHUB_OUTPUT
           done
-      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: ap-southeast-1
+          role-to-assume: arn:aws:iam::744994327583:role/eks-qoala-dev-cluster-ci-role
+          role-duration-seconds: 3600
+          
       - name: Get DB Dump from S3 and Upload to MySQL Host
         shell: bash
         run: |
           # Replace <S3_BUCKET_NAME> and <DB_DUMP_FILE_NAME> with your actual values
+          sudo apt-get install mysql-client -y
           aws s3 cp s3://mysql-dump-workflow/unified_quotation_service_uat.sql - | mysql -h ${{ needs.deploy.outputs.mysql_host }} -uroot -p12345 ${{ steps.db-vars.outputs.name }}
 
       - name: Checkout Goose Migration Action Repo
