@@ -773,6 +773,12 @@ jobs:
             echo "$key=$value" >> $GITHUB_OUTPUT
           done
       
+      - name: Get DB Dump from S3 and Upload to MySQL Host
+        shell: bash
+        run: |
+          # Replace <S3_BUCKET_NAME> and <DB_DUMP_FILE_NAME> with your actual values
+          aws s3 cp s3://mysql-dump-workflow/unified_quotation_service_uat.sql - | mysql -h ${{ needs.deploy.outputs.mysql_host }} -uroot -p12345 ${{ steps.db-vars.outputs.name }}
+
       - name: Checkout Goose Migration Action Repo
         if: steps.db-vars.outputs.lang == 'golang'
         uses: actions/checkout@v2
