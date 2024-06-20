@@ -791,7 +791,7 @@ jobs:
       #       echo "::set-output name=another_db_host::"
       #     fi
 
-      - name: Get DB Dump from S3 and Upload to MySQL Host
+      - name: Get DB Dump from RDS and Upload to MySQL Host
         shell: bash
         if: steps.db-vars.outputs.upload_dump == 'true'
         run: |
@@ -811,7 +811,7 @@ jobs:
       - uses: ./.github/actions/goose-migration-action
         if: steps.db-vars.outputs.lang == 'golang'
         with:
-          role_to_assume: ''
+          role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
           parameter_path: ${{ needs.config.outputs.ssm_path }}
           db_name_key: ${{ steps.db-vars.outputs.name }}
           db_host_key: ${{ needs.deploy.outputs.mysql_host }}
