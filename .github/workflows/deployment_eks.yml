@@ -781,15 +781,6 @@ jobs:
           aws-region: ap-southeast-1
           role-to-assume: arn:aws:iam::744994327583:role/eks-qoala-dev-cluster-ci-role
           role-duration-seconds: 3600
-      
-      # - name: Get ANOTHER_DB_HOST
-      #   id: get-another-db-host
-      #   run: |
-      #     if [[ "${{ inputs.service_name }}" == "claim-service" || "${{ inputs.service_name }}" == "rule-engine-service" || "${{ inputs.service_name }}" == "unified-quotation-service" ]]; then
-      #       echo "::set-output name=another_db_host::uat-central-db.chqvizqsivap.ap-southeast-1.rds.amazonaws.com"
-      #     else
-      #       echo "::set-output name=another_db_host::"
-      #     fi
 
       - name: Get DB Dump from RDS and Upload to MySQL Host
         shell: bash
