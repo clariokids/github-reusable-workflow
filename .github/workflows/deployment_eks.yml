@@ -776,7 +776,8 @@ jobs:
           done
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
+        if: steps.db-vars.outputs.upload_dump == 'true'
         with:
           aws-region: ap-southeast-1
           role-to-assume: arn:aws:iam::744994327583:role/eks-qoala-dev-cluster-ci-role
