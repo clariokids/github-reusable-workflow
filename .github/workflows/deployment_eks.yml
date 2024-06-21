@@ -169,6 +169,8 @@ on:
     secrets:
       token_github:
         required: true
+      dbdump_password:
+        required: false
       ca_crt:
         required: false
       DEVOPS_SLACK_BOT_TOKEN:
@@ -772,7 +774,23 @@ jobs:
             echo "$key=$value"
             echo "$key=$value" >> $GITHUB_OUTPUT
           done
-      
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        if: steps.db-vars.outputs.upload_dump == 'true'
+        with:
+          aws-region: ap-southeast-1
+          role-to-assume: arn:aws:iam::744994327583:role/eks-qoala-dev-cluster-ci-role
+          role-duration-seconds: 3600
+
+      - name: Get DB Dump from RDS and Upload to MySQL Host
+        shell: bash
+        if: steps.db-vars.outputs.upload_dump == 'true'
+        run: |
+              sudo apt-get update -y
+              sudo apt-get install mysql-client -y
+              mysqldump -h ${{ steps.db-vars.outputs.dump_db_host }} -udump_user -p${{ secrets.dbdump_password }} ${{ steps.db-vars.outputs.dump_db_name }} | mysql -h ${{ needs.deploy.outputs.mysql_host }} -uroot -p12345 ${{ steps.db-vars.outputs.name }}
+            
       - name: Checkout Goose Migration Action Repo
         if: steps.db-vars.outputs.lang == 'golang'
         uses: actions/checkout@v2
