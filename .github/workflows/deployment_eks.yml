@@ -565,7 +565,7 @@ jobs:
           ecr_cache_tag: ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment) }}
           build_args: |
             GITHUB_TOKEN=${{ secrets.token_github }}
-            CONSUMER=${{ needs.config.outputs.dockerfile }}
+            CONSUMER=${{ needs.config.outputs.consumer }}
           custom_tags: |
             ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment)}}
             ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
