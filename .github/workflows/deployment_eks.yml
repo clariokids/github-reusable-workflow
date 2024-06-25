@@ -577,7 +577,7 @@ jobs:
     if: inputs.static_s3_website == false
     outputs:
       deploy_mysql: ${{ steps.db-vars.outputs.deploy_mysql }}
-      deply_mongo: ${{ steps.db-vars.outputs.deploy_mongo }}
+      deploy_mongo: ${{ steps.db-vars.outputs.deploy_mongo }}
     steps:
       - name: Set inputs as variables
         id: db-vars
