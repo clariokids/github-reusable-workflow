@@ -64,11 +64,11 @@ on:
         description: "db_password_key"
         required: false
         type: string
-      consumer:
-        description: "set true if you need to deploy a consumer service"
-        required: false
-        type: boolean
-        default: false
+      # consumer:
+      #   description: "set true if you need to deploy a consumer service"
+      #   required: false
+      #   type: boolean
+      #   default: false
       ecr_name:
         description: "overide service_name as ecr_name"
         required: false
@@ -466,6 +466,7 @@ jobs:
       node_env: ${{ steps.config.outputs.node_env }}
       db_conf: ${{ steps.set-vars.outputs.db }}
       dockerfile: ${{ steps.set-vars.outputs.dockerfile }}
+      consumer: ${{ steps.set-vars.outputs.consumer }}
     steps:
       - name: Set inputs as variables
         id: set-vars
@@ -501,7 +502,7 @@ jobs:
     if: inputs.static_s3_website == false
     outputs:
       image_registry: ${{ steps.publish_image.outputs.image_registry }}
-      image_tag: ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
+      image_tag: ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -561,13 +562,13 @@ jobs:
           ecr_name: ${{ inputs.ecr_name || inputs.service_name}}
           role-to-assume: ${{ needs.config.outputs.build_role_arn }}
           dockerfile: ${{ (needs.config.outputs.dockerfile != '' && needs.config.outputs.dockerfile) || 'Dockerfile' }}
-          ecr_cache_tag: ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment) }}
+          ecr_cache_tag: ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment) }}
           build_args: |
             GITHUB_TOKEN=${{ secrets.token_github }}
-            CONSUMER=${{ inputs.consumer }}
+            CONSUMER=${{ needs.config.outputs.dockerfile }}
           custom_tags: |
-            ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment)}}
-            ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
+            ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment)}}
+            ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
 
    
   check_db_deploy: 
@@ -623,12 +624,12 @@ jobs:
         uses: ./.github/actions/helm-values-ssm-injection
         with:
           image: ${{ needs.build.outputs.image_registry }}/${{ inputs.ecr_name || inputs.service_name }}:${{ needs.build.outputs.image_tag }}
-          environment: ${{ (inputs.consumer == true && format('{0}-{1}', needs.config.outputs.environment, 'consumer')) || needs.config.outputs.environment}}
+          environment: ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', needs.config.outputs.environment, 'consumer')) || needs.config.outputs.environment}}
           configPath: ${{ inputs.config_path }}
           serviceName: ${{ inputs.service_name }}
           bu: ${{ inputs.bu }}
           assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
-          consumer: ${{ inputs.consumer }}
+          consumer: ${{ needs.config.outputs.dockerfile }}
           extraConfig: ${{ inputs.inputs_json }}
 
       - name: Checkout GitHub Action Repo
@@ -651,7 +652,7 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
+          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
           if grep -A3 'stagingFactory:' ${{ steps.values.outputs.values }} | tail -n1 | cut -c 12- | grep -q "true"; then
             kubectl annotate --overwrite namespace $env_name staging-factory=true
           fi
