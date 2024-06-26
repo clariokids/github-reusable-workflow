@@ -304,7 +304,7 @@ jobs:
                   echo "Updated $CONFIG_FILE"
                   cat $CONFIG_FILE
                 else
-                  jq --arg key "apiBaseUrl" --arg value "$DEV_HOST" \
+                  jq --arg key "apiBaseUrl" --arg value "$QPLUS_DEV_HOST" \
                   '.[$key]=$value' "config/development.json" > temp.json && mv temp.json config/development.json
                   echo "Updated $CONFIG_FILE"
                   cat $CONFIG_FILE
