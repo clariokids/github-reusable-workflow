@@ -64,11 +64,6 @@ on:
         description: "db_password_key"
         required: false
         type: string
-      # consumer:
-      #   description: "set true if you need to deploy a consumer service"
-      #   required: false
-      #   type: boolean
-      #   default: false
       ecr_name:
         description: "overide service_name as ecr_name"
         required: false
@@ -598,6 +593,7 @@ jobs:
       mysql_host: ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }}
       mongo_host: ${{ steps.fetchMongoIp.outputs.MONGO_HOST }}
       redis_host: ${{ steps.fetchRedisIp.outputs.REDIS_HOST }}
+      service_name: ${{ steps.values.outputs.service_name }}
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -617,7 +613,7 @@ jobs:
           repository: qoala-engineering/helm-values-ssm-injection
           token: ${{ secrets.token_github }}
           path: .github/actions/helm-values-ssm-injection
-          ref: support-more-inputs
+          ref: deploy-consumer
       
       - name: SSM Injection
         id: values
@@ -652,7 +648,7 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ (needs.config.outputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
+          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
           if grep -A3 'stagingFactory:' ${{ steps.values.outputs.values }} | tail -n1 | cut -c 12- | grep -q "true"; then
             kubectl annotate --overwrite namespace $env_name staging-factory=true
           fi
@@ -670,7 +666,7 @@ jobs:
         if: needs.check_db_deploy.outputs.deploy_mysql == 'true'
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          MYSQL_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
+          MYSQL_HOST=$(kubectl get pod ${{ steps.values.outputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
           echo "MYSQL_HOST=$MYSQL_HOST" >> $GITHUB_OUTPUT
 
       - name: Fetch MongoDB IP
@@ -679,7 +675,7 @@ jobs:
         if: needs.check_db_deploy.outputs.deploy_mongo == 'true'
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
+          MONGO_HOST=$(kubectl get pod ${{ steps.values.outputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
           echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_OUTPUT
 
       - name: Fetch Redis IP
@@ -688,7 +684,7 @@ jobs:
         if: needs.check_db_deploy.outputs.deploy_redis == 'true'
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
+          REDIS_HOST=$(kubectl get pod ${{ steps.values.outputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
           echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
           
       - name: Update status
@@ -742,7 +738,7 @@ jobs:
                       },
                       {
                         "type": "mrkdwn",
-                        "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZzsf/logs-app?orgId=1&var-app=${{ inputs.environment}}%2F${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }}&var-search=|View Logs>"
+                        "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZzsf/logs-app?orgId=1&var-app=${{ inputs.environment}}%2F${{ steps.values.outputs.service_name }}&var-search=|View Logs>"
                       },
                       {
                         "type": "mrkdwn",
