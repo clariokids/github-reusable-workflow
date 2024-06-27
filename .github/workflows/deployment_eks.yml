@@ -613,7 +613,7 @@ jobs:
           repository: qoala-engineering/helm-values-ssm-injection
           token: ${{ secrets.token_github }}
           path: .github/actions/helm-values-ssm-injection
-          ref: deploy-consumer
+          ref: support-more-inputs
       
       - name: SSM Injection
         id: values
