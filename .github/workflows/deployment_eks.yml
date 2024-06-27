@@ -677,7 +677,7 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
           echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_OUTPUT
-
+        
       - name: Fetch Redis IP
         shell: bash
         id: fetchRedisIp
@@ -762,7 +762,7 @@ jobs:
     name: DB Migration
     needs: [config,  deploy, check_db_deploy]
     runs-on: [ self-hosted, eks-runner ]
-    if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql == 'true' && needs.config.outputs.consumer != 'true' 
+    if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql == 'true' || needs.check_db_deploy.outputs.deploy_mongo == 'true' || needs.config.outputs.consumer != 'true'
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -785,7 +785,23 @@ jobs:
             echo "$key=$value"
             echo "$key=$value" >> $GITHUB_OUTPUT
           done
-
+      
+      - name: Get DB Dump from Atlas and Upload to Mongo Host
+        shell: bash
+        if: steps.db-vars.outputs.upload_mongo_dump == 'true'
+        run: |
+              sudo apt-get install gnupg curl
+              curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \
+                sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg \
+                --dearmor
+              echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+              sudo apt-get update
+              sudo apt-get install -y mongodb-org
+              echo "Starting db dump"
+              mongodump --uri="mongodb://dump_user:${{ secrets.dbdump_password }}@${{ steps.db-vars.outputs.mongo_dump_db_host }}/${{ steps.db-vars.outputs.mongo_dump_db_name }}?ssl=true&authSource=admin" -c ${{ steps.db-vars.outputs.mongo_db_collection }} --gzip --out . 
+              echo "Starting db restore"
+              mongorestore --uri="mongodb://root:12345@${{ needs.deploy.outputs.mongo_host }}:27017/${{ steps.db-vars.outputs.mongo_db_name }}?&authSource=admin" --collection  ${{ steps.db-vars.outputs.mongo_db_collection }}  ${{ steps.db-vars.outputs.mongo_dump_db_name }}/${{ steps.db-vars.outputs.mongo_db_collection }}.bson.gz --gzip 
+      
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         if: steps.db-vars.outputs.upload_dump == 'true'
