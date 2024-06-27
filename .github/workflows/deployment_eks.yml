@@ -648,8 +648,6 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          echo ${{ steps.values.outputs.values }}
-          cat ${{ steps.values.outputs.values }}
           helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
           if grep -A3 'stagingFactory:' ${{ steps.values.outputs.values }} | tail -n1 | cut -c 12- | grep -q "true"; then
             kubectl annotate --overwrite namespace $env_name staging-factory=true
@@ -671,23 +669,6 @@ jobs:
           MYSQL_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
           echo "MYSQL_HOST=$MYSQL_HOST" >> $GITHUB_OUTPUT
 
-      - name: Fetch MongoDB IP
-        shell: bash
-        id: fetchMongoIp
-        if: needs.check_db_deploy.outputs.deploy_mongo == 'true'
-        run: |
-          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
-          echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_OUTPUT
-
-      - name: Fetch Redis IP
-        shell: bash
-        id: fetchRedisIp
-        if: needs.check_db_deploy.outputs.deploy_redis == 'true'
-        run: |
-          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
-          echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
           
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
