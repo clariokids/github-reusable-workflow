@@ -660,15 +660,6 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           kubectl annotate --overwrite namespace $env_name staging-facroty/extend=${{ inputs.lifetime }}
 
-      - name: Fetch MySQL IP
-        shell: bash
-        id: fetchMysqlIp
-        if: needs.check_db_deploy.outputs.deploy_mysql == 'true'
-        run: |
-          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          MYSQL_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
-          echo "MYSQL_HOST=$MYSQL_HOST" >> $GITHUB_OUTPUT
-
           
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
