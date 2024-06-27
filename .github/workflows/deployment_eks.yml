@@ -804,7 +804,7 @@ jobs:
               echo "Starting db dump"
               mongodump --uri="mongodb://dump_user:${{ secrets.dbdump_password }}@${{ steps.db-vars.outputs.mongo_dump_db_host }}/${{ steps.db-vars.outputs.mongo_dump_db_name }}?ssl=true&authSource=admin" -c ${{ steps.db-vars.outputs.mongo_db_collection }} --gzip --out . 
               echo "Starting db restore"
-              mongorestore --uri="mongodb://root:12345@${{ needs.deploy.outputs.mongo_host }}:27017/${{ steps.db-vars.outputs.name }}?&authSource=admin" --collection  ${{ steps.db-vars.outputs.mongo_db_collection }}  ${{ steps.db-vars.outputs.mongo_dump_db_name }}/${{ steps.db-vars.outputs.mongo_db_collection }}.bson.gz --gzip 
+              mongorestore --uri="mongodb://root:12345@${{ needs.deploy.outputs.mongo_host }}:27017/${{ steps.db-vars.outputs.name }}/${{ steps.db-vars.outputs.mongo_dump_db_name }}?&authSource=admin" --collection  ${{ steps.db-vars.outputs.mongo_db_collection }}  ${{ steps.db-vars.outputs.mongo_dump_db_name }}/${{ steps.db-vars.outputs.mongo_db_collection }}.bson.gz --gzip 
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
