@@ -494,7 +494,7 @@ jobs:
     name: Build Image
     needs: [ config ]
     runs-on: [ self-hosted, eks-runner ]
-    if: inputs.static_s3_website == false
+    if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql == 'true' && needs.config.outputs.consumer != 'true' 
     outputs:
       image_registry: ${{ steps.publish_image.outputs.image_registry }}
       image_tag: ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
