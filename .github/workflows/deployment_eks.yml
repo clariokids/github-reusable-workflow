@@ -494,7 +494,7 @@ jobs:
     name: Build Image
     needs: [ config ]
     runs-on: [ self-hosted, eks-runner ]
-    if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql == 'true' && needs.config.outputs.consumer != 'true' 
+    if: inputs.static_s3_website == false
     outputs:
       image_registry: ${{ steps.publish_image.outputs.image_registry }}
       image_tag: ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
@@ -613,7 +613,7 @@ jobs:
           repository: qoala-engineering/helm-values-ssm-injection
           token: ${{ secrets.token_github }}
           path: .github/actions/helm-values-ssm-injection
-          ref: deploy-consumer
+          ref: support-more-inputs
       
       - name: SSM Injection
         id: values
@@ -634,7 +634,7 @@ jobs:
           repository: qoala-engineering/setup-eks-helm-action
           token: ${{ secrets.token_github }}
           path: .github/actions/setup-eks-helm-action
-          ref: deploy-consumer
+          ref: staging-factory-feature
 
       - uses: ./.github/actions/setup-eks-helm-action
         with:
@@ -660,6 +660,32 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           kubectl annotate --overwrite namespace $env_name staging-facroty/extend=${{ inputs.lifetime }}
 
+      - name: Fetch MySQL IP
+        shell: bash
+        id: fetchMysqlIp
+        if: needs.check_db_deploy.outputs.deploy_mysql == 'true'
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          MYSQL_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "MYSQL_HOST=$MYSQL_HOST" >> $GITHUB_OUTPUT
+
+      - name: Fetch MongoDB IP
+        shell: bash
+        id: fetchMongoIp
+        if: needs.check_db_deploy.outputs.deploy_mongo == 'true'
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_OUTPUT
+
+      - name: Fetch Redis IP
+        shell: bash
+        id: fetchRedisIp
+        if: needs.check_db_deploy.outputs.deploy_redis == 'true'
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
           
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
