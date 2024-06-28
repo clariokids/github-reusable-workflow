@@ -64,11 +64,6 @@ on:
         description: "db_password_key"
         required: false
         type: string
-      consumer:
-        description: "set true if you need to deploy a consumer service"
-        required: false
-        type: boolean
-        default: false
       ecr_name:
         description: "overide service_name as ecr_name"
         required: false
@@ -160,10 +155,17 @@ on:
         description: "Extend environment lifetime value set in hours. The value you set will be added to the initial 4h(ex. value set to 5h, 5+4=9h)"
         type: string
         required: false
+      inputs_json:
+        description: 'Inputs in a json format'
+        required: false
+        default: ''
+        type: string
       
     secrets:
       token_github:
         required: true
+      dbdump_password:
+        required: false
       ca_crt:
         required: false
       DEVOPS_SLACK_BOT_TOKEN:
@@ -297,7 +299,7 @@ jobs:
                   echo "Updated $CONFIG_FILE"
                   cat $CONFIG_FILE
                 else
-                  jq --arg key "apiBaseUrl" --arg value "$DEV_HOST" \
+                  jq --arg key "apiBaseUrl" --arg value "$QPLUS_DEV_HOST" \
                   '.[$key]=$value' "config/development.json" > temp.json && mv temp.json config/development.json
                   echo "Updated $CONFIG_FILE"
                   cat $CONFIG_FILE
@@ -457,7 +459,19 @@ jobs:
       ssm_role_arn: ${{ steps.config.outputs.ssm_role_arn }}
       ssm_path: ${{ steps.config.outputs.ssm_path }}
       node_env: ${{ steps.config.outputs.node_env }}
+      db_conf: ${{ steps.set-vars.outputs.db }}
+      dockerfile: ${{ steps.set-vars.outputs.dockerfile }}
+      consumer: ${{ steps.set-vars.outputs.consumer }}
     steps:
+      - name: Set inputs as variables
+        id: set-vars
+        run: |
+          echo "Setting environment variables from JSON input"
+          echo '${{ inputs.inputs_json }}' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
+            echo "$key=$value"
+            echo "$key=$value" >> $GITHUB_OUTPUT
+          done
+          
       - name: Checkout Generate Config Action Repo
         uses: actions/checkout@v2
         with:
@@ -476,69 +490,14 @@ jobs:
           ssm_folder: ${{ inputs.ssm_folder }}
           allowed_branches: ${{ inputs.allowed_branches }}
 
-  db_migration:
-    name: DB Migration
-    needs: config
-    runs-on: [ self-hosted, eks-runner ]
-    if: inputs.static_s3_website == false
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      
-      - name: Checkout Goose Migration Action Repo
-        if: inputs.with_db_migration == true && inputs.lang == 'golang'
-        uses: actions/checkout@v2
-        with:
-          repository: qoala-engineering/goose-migration-action
-          token: ${{ secrets.token_github }}
-          path: .github/actions/goose-migration-action
-          ref: improve/action
-
-      - uses: ./.github/actions/goose-migration-action
-        if: inputs.with_db_migration == true && inputs.lang == 'golang'
-        with:
-          role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
-          parameter_path: ${{ needs.config.outputs.ssm_path }}
-          db_name_key: ${{ inputs.db_name_key }}
-          db_host_key: ${{ inputs.db_host_key }}
-          db_user_key: ${{ inputs.db_user_key }}
-          db_password_key: ${{ inputs.db_password_key }}
-          db_migration_path: ${{ inputs.db_migration_path }}
-          with_seeder: ${{ inputs.with_seeder }}
-          db_seeder_path: ${{ inputs.db_seeder_path }}
-          go_version: ${{ inputs.go_version }}
-      
-      - name: Checkout Knex Migration Action Repo
-        if: inputs.with_db_migration == true && inputs.lang == 'nodejs'
-        uses: actions/checkout@v2
-        with:
-          repository: qoala-engineering/knex-migration-action
-          token: ${{ secrets.token_github }}
-          path: .github/actions/knex-migration-action
-          ref: improve/action
-
-      - uses: ./.github/actions/knex-migration-action
-        if: inputs.with_db_migration == true && inputs.lang == 'nodejs'
-        env:
-          NODE_ENV: ${{ needs.config.outputs.node_env }}
-        with:
-          role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
-          parameter_path: ${{ needs.config.outputs.ssm_path }}
-          db_name_key: ${{ inputs.db_name_key }}
-          db_host_key: ${{ inputs.db_host_key }}
-          db_user_key: ${{ inputs.db_user_key }}
-          db_password_key: ${{ inputs.db_password_key }}
-          with_seeder: ${{ inputs.with_seeder }}
-          node_version: ${{ inputs.node_version }}
-
   build:
     name: Build Image
-    needs: [ config, db_migration ]
+    needs: [ config ]
     runs-on: [ self-hosted, eks-runner ]
     if: inputs.static_s3_website == false
     outputs:
       image_registry: ${{ steps.publish_image.outputs.image_registry }}
-      image_tag: ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
+      image_tag: ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -594,24 +553,47 @@ jobs:
         uses: ./.github/actions/ecr-publish-action
         id: publish_image
         with:
-          aws-region: "ap-southeast-3"
-          # ${{ needs.config.outputs.aws_region }}
+          aws-region: ${{ needs.config.outputs.aws_region }}
           ecr_name: ${{ inputs.ecr_name || inputs.service_name}}
           role-to-assume: ${{ needs.config.outputs.build_role_arn }}
-          dockerfile: ${{ (inputs.dockerfile != '' && inputs.dockerfile) || 'Dockerfile' }}
-          ecr_cache_tag: ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment) }}
+          dockerfile: ${{ (needs.config.outputs.dockerfile != '' && needs.config.outputs.dockerfile) || 'Dockerfile' }}
+          ecr_cache_tag: ${{ (needs.config.outputs.consumer == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment) }}
           build_args: |
             GITHUB_TOKEN=${{ secrets.token_github }}
-            CONSUMER=${{ inputs.consumer }}
+            CONSUMER=${{ needs.config.outputs.consumer }}
           custom_tags: |
-            ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment)}}
-            ${{ (inputs.consumer == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
+            ${{ (needs.config.outputs.consumer == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment)}}
+            ${{ (needs.config.outputs.consumer == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
+
+   
+  check_db_deploy: 
+    name: Check DB Deploy 
+    needs: [ config ]
+    runs-on: [ self-hosted, eks-runner ]
+    if: inputs.static_s3_website == false
+    outputs:
+      deploy_mysql: ${{ steps.db-vars.outputs.deploy_mysql }}
+      deploy_mongo: ${{ steps.db-vars.outputs.deploy_mongo }}
+    steps:
+      - name: Set inputs as variables
+        id: db-vars
+        run: |
+          echo "Setting environment variables from JSON input"
+          echo '${{ needs.config.outputs.db_conf }}' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
+            echo "$key=$value"
+            echo "$key=$value" >> $GITHUB_OUTPUT
+          done
 
   deploy:
     name: Deploy Service
-    needs: [ config, build, notification ]
+    needs: [ config, build, notification, check_db_deploy ]
     runs-on: [self-hosted, eks-runner]
     if: inputs.static_s3_website == false
+    outputs:
+      mysql_host: ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }}
+      mongo_host: ${{ steps.fetchMongoIp.outputs.MONGO_HOST }}
+      redis_host: ${{ steps.fetchRedisIp.outputs.REDIS_HOST }}
+      service_name: ${{ steps.values.outputs.service_name }}
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -638,12 +620,13 @@ jobs:
         uses: ./.github/actions/helm-values-ssm-injection
         with:
           image: ${{ needs.build.outputs.image_registry }}/${{ inputs.ecr_name || inputs.service_name }}:${{ needs.build.outputs.image_tag }}
-          environment: ${{ (inputs.consumer == true && format('{0}-{1}', needs.config.outputs.environment, 'consumer')) || needs.config.outputs.environment}}
+          environment: ${{ (needs.config.outputs.consumer == true && format('{0}-{1}', needs.config.outputs.environment, 'consumer')) || needs.config.outputs.environment}}
           configPath: ${{ inputs.config_path }}
           serviceName: ${{ inputs.service_name }}
           bu: ${{ inputs.bu }}
           assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
-          consumer: ${{ inputs.consumer }}
+          consumer: ${{ needs.config.outputs.consumer }}
+          extraConfig: ${{ inputs.inputs_json }}
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
@@ -665,7 +648,7 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
+          helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }} .charts/charts/service -f ${{ steps.values.outputs.values }}
           if grep -A3 'stagingFactory:' ${{ steps.values.outputs.values }} | tail -n1 | cut -c 12- | grep -q "true"; then
             kubectl annotate --overwrite namespace $env_name staging-factory=true
           fi
@@ -677,6 +660,33 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           kubectl annotate --overwrite namespace $env_name staging-facroty/extend=${{ inputs.lifetime }}
 
+      - name: Fetch MySQL IP
+        shell: bash
+        id: fetchMysqlIp
+        if: needs.check_db_deploy.outputs.deploy_mysql == 'true'
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          MYSQL_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-0 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "MYSQL_HOST=$MYSQL_HOST" >> $GITHUB_OUTPUT
+
+      - name: Fetch MongoDB IP
+        shell: bash
+        id: fetchMongoIp
+        if: needs.check_db_deploy.outputs.deploy_mongo == 'true'
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_OUTPUT
+        
+      - name: Fetch Redis IP
+        shell: bash
+        id: fetchRedisIp
+        if: needs.check_db_deploy.outputs.deploy_redis == 'true'
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
+          
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
         id: slack
@@ -728,7 +738,11 @@ jobs:
                       },
                       {
                         "type": "mrkdwn",
-                        "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZz/logs-app?orgId=1&var-app=${{ inputs.environment}}%2F${{ (inputs.consumer == true && format('{0}-{1}', inputs.service_name, 'consumer')) || inputs.service_name }}&var-search=|View Logs>"
+                        "text": "*Grafana Logs:* <https://grafana.uat.qoala.app/d/liz0yRCZzsf/logs-app?orgId=1&var-app=${{ inputs.environment}}%2F${{ steps.values.outputs.service_name }}&var-search=|View Logs>"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*DB Hosts:* Mysql- ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }}, Mongo- ${{ steps.fetchMongoIp.outputs.MONGO_HOST }}, Redis- ${{ steps.fetchRedisIp.outputs.REDIS_HOST }}"
                       }
                     ]
                   },
@@ -743,6 +757,120 @@ jobs:
                   }
                 ]
             }
+
+  db_migration:
+    name: DB Migration
+    needs: [config,  deploy, check_db_deploy]
+    runs-on: [ self-hosted, eks-runner ]
+    if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql == 'true' || needs.check_db_deploy.outputs.deploy_mongo == 'true' || needs.config.outputs.consumer != 'true'
+    steps:
+      - name: Checkout
+        if: inputs.repo_name == ''
+        uses: actions/checkout@v2
+
+      - name: Disposable Env Checkout 
+        if: inputs.repo_name != ''
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/${{ inputs.repo_name }}
+          token: ${{ secrets.token_github }}
+          ref: ${{ inputs.branch_name }}
+
+      - name: Set inputs as variables
+        id: db-vars
+        run: |
+          echo "Setting environment variables from JSON input"
+          echo ${{ needs.deploy.outputs.mysql_host }}
+          echo '${{ needs.config.outputs.db_conf }}' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
+            echo "$key=$value"
+            echo "$key=$value" >> $GITHUB_OUTPUT
+          done
+      
+      - name: Get DB Dump from Atlas and Upload to Mongo Host
+        shell: bash
+        if: steps.db-vars.outputs.upload_mongo_dump == 'true'
+        run: |
+              sudo apt-get install gnupg curl
+              curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \
+                sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg \
+                --dearmor
+              echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+              sudo apt-get update
+              sudo apt-get install -y mongodb-org
+              echo "Starting db dump"
+              mongodump --uri="mongodb://dump_user:${{ secrets.dbdump_password }}@${{ steps.db-vars.outputs.mongo_dump_db_host }}/${{ steps.db-vars.outputs.mongo_dump_db_name }}?ssl=true&authSource=admin" --gzip --out . 
+              echo "Starting db restore"
+              mongorestore --uri="mongodb://root:12345@${{ needs.deploy.outputs.mongo_host }}:27017/${{ steps.db-vars.outputs.mongo_db_name }}?&authSource=admin"  ${{ steps.db-vars.outputs.mongo_dump_db_name }}/ --gzip 
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        if: steps.db-vars.outputs.upload_dump == 'true'
+        with:
+          aws-region: ap-southeast-1
+          role-to-assume: arn:aws:iam::744994327583:role/eks-qoala-dev-cluster-ci-role
+          role-duration-seconds: 3600
+
+      - name: Get DB Dump from RDS and Upload to MySQL Host
+        shell: bash
+        if: steps.db-vars.outputs.upload_dump == 'true'
+        run: |
+              sudo apt-get update -y
+              sudo apt-get install mysql-client -y
+              mysqldump -h ${{ steps.db-vars.outputs.dump_db_host }} -udump_user -p${{ secrets.dbdump_password }} ${{ steps.db-vars.outputs.dump_db_name }} | mysql -h ${{ needs.deploy.outputs.mysql_host }} -uroot -p12345 ${{ steps.db-vars.outputs.name }}
+            
+      - name: Checkout Goose Migration Action Repo
+        if: steps.db-vars.outputs.lang == 'golang'
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/goose-migration-action
+          token: ${{ secrets.token_github }}
+          path: .github/actions/goose-migration-action
+          ref: staging-factory
+
+      - uses: ./.github/actions/goose-migration-action
+        if: steps.db-vars.outputs.lang == 'golang'
+        with:
+          role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
+          parameter_path: ${{ needs.config.outputs.ssm_path }}
+          db_name_key: ${{ steps.db-vars.outputs.name }}
+          db_host_key: ${{ needs.deploy.outputs.mysql_host }}
+          db_user_key: 'root'
+          db_password_key: '12345'
+          db_migration_path: ${{ steps.db-vars.outputs.migrationPath }}
+          with_seeder: ${{ inputs.with_seeder }}
+          db_seeder_path: ${{ inputs.db_seeder_path }}
+          go_version: ${{ inputs.go_version }}
+      
+      - name: Checkout Knex Migration Action Repo
+        if: steps.db-vars.outputs.lang == 'nodejs'
+        uses: actions/checkout@v2
+        with:
+          repository: qoala-engineering/knex-migration-action
+          token: ${{ secrets.token_github }}
+          path: .github/actions/knex-migration-action
+          ref: improve/action
+
+      - uses: ./.github/actions/knex-migration-action
+        if: steps.db-vars.outputs.lang == 'nodejs'
+        env:
+          NODE_ENV: ${{ needs.config.outputs.node_env }}
+        with:
+          role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
+          parameter_path: ${{ needs.config.outputs.ssm_path }}
+          db_name_key: ${{ inputs.db_name_key }}
+          db_host_key: ${{ inputs.db_host_key }}
+          db_user_key: ${{ inputs.db_user_key }}
+          db_password_key: ${{ inputs.db_password_key }}
+          with_seeder: ${{ inputs.with_seeder }}
+          node_version: ${{ inputs.node_version }}
+
+      - name: DB Migration Python
+        if: steps.db-vars.outputs.lang == 'python'
+        id: status_db_migration
+        shell: bash
+        run: |
+          dbmate -u "mysql://root:12345@${{ needs.deploy.outputs.mysql_host }}:3306/${{ steps.db-vars.outputs.name }}" -d ${{ steps.db-vars.outputs.migrationPath }} --no-dump-schema up
+
 
   regression_test:
     name: Regression Test
