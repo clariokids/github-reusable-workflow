@@ -164,6 +164,8 @@ on:
     secrets:
       token_github:
         required: true
+      token_github_platform_org:
+        required: true
       dbdump_password:
         required: false
       ca_crt:
@@ -245,8 +247,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          repository: qoala-engineering/disposable-static-website-action
-          token: ${{ secrets.token_github }}
+          repository: qoala-platform/disposable-static-website-action
+          token: ${{ secrets.token_github_platform_org }}
           ref: main
           path: .github/actions/disposable-static-website-action
 
