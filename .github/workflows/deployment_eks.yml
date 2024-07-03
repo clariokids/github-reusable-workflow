@@ -162,7 +162,7 @@ on:
         type: string
       
     secrets:
-      token_github_qoala:
+      token_github:
         required: true
       token_github_platform_org:
         required: true
@@ -279,7 +279,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: ${{ needs.config.outputs.organisation }}/${{ inputs.repo_name }}
-          token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github_qoala }}
+          token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github }}
           fetch-depth: 0
           ref: ${{ inputs.branch_name }}
 
@@ -511,7 +511,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: ${{ needs.config.outputs.organisation }}/${{ inputs.repo_name }}
-          token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github_qoala }}
+          token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github }}
           ref: ${{ inputs.branch_name }}
 
       - name: Modify config file
@@ -607,7 +607,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: ${{ needs.config.outputs.organisation }}/${{ inputs.repo_name }}
-          token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github_qoala }}
+          token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github }}
           ref: ${{ inputs.branch_name }}
 
       - name: Checkout SSM Injection
@@ -776,7 +776,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: ${{ needs.config.outputs.organisation }}/${{ inputs.repo_name }}
-          token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github_qoala }}
+          token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github }}
           ref: ${{ inputs.branch_name }}
 
       - name: Set inputs as variables
