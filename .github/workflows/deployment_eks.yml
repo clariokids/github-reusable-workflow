@@ -162,7 +162,7 @@ on:
         type: string
       
     secrets:
-      token_github:
+      token_github_qoala:
         required: true
       token_github_platform_org:
         required: true
