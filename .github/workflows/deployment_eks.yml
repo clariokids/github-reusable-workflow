@@ -682,7 +682,7 @@ jobs:
           MONGO_HOST1=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
           MONGO_HOST2=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-1 -n $env_name -o jsonpath='{.status.podIP}')
           echo "MONGO_HOST=$MONGO_HOST1,$MONGO_HOST2" >> $GITHUB_OUTPUT
-          envsubst < .charts/charts/service/mongo-initiate.yaml | kubectl apply -f --namespace $env_name 
+          envsubst < .charts/charts/service/mongo-initiate.yaml | kubectl apply --namespace $env_name  -f -
         
       - name: Fetch Redis IP
         shell: bash
