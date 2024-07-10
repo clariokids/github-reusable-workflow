@@ -678,8 +678,11 @@ jobs:
         if: needs.check_db_deploy.outputs.deploy_mongo == 'true'
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
-          echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_OUTPUT
+          SERVICE_NAME=${{ steps.values.outputs.service_name }}
+          MONGO_HOST1=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
+          MONGO_HOST2=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-1 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "MONGO_HOST=$MONGO_HOST1,$MONGO_HOST2" >> $GITHUB_OUTPUT
+          envsubst < .charts/charts/service/mongo-initiate.yaml | kubectl apply -f --namespace $env_name 
         
       - name: Fetch Redis IP
         shell: bash
@@ -689,7 +692,7 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
           echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
-          
+      
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
         id: slack
