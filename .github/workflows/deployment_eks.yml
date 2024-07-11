@@ -679,6 +679,8 @@ jobs:
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           SERVICE_NAME=${{ steps.values.outputs.service_name }}
+          echo "Waiting for MongoDB to be available..."
+          sleep 60
           MONGO_HOST1=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
           MONGO_HOST2=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-1 -n $env_name -o jsonpath='{.status.podIP}')
           MONGO_HOST3=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-2 -n $env_name -o jsonpath='{.status.podIP}')
