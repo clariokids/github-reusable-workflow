@@ -682,7 +682,7 @@ jobs:
           MONGO_HOST1=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
           MONGO_HOST2=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-1 -n $env_name -o jsonpath='{.status.podIP}')
           MONGO_HOST3=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-2 -n $env_name -o jsonpath='{.status.podIP}')
-          echo "MONGO_HOST=$MONGO_HOST1,$MONGO_HOST2,$MONGO_HOST3" >> $GITHUB_OUTPUT
+          echo "MONGO_HOST=$MONGO_HOST1" >> $GITHUB_OUTPUT
           cat .charts/charts/service/mongo-initiate.yaml
           sed -e "s/\${SERVICE_NAME}/$SERVICE_NAME/g" \
               -e "s/\${MONGO_HOST1}/$MONGO_HOST1/g" \
