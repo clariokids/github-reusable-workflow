@@ -678,8 +678,19 @@ jobs:
         if: needs.check_db_deploy.outputs.deploy_mongo == 'true'
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          MONGO_HOST=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
-          echo "MONGO_HOST=$MONGO_HOST" >> $GITHUB_OUTPUT
+          SERVICE_NAME=${{ steps.values.outputs.service_name }}
+          MONGO_HOST1=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-0 -n $env_name -o jsonpath='{.status.podIP}')
+          MONGO_HOST2=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-1 -n $env_name -o jsonpath='{.status.podIP}')
+          MONGO_HOST3=$(kubectl get pod ${{ inputs.service_name }}-db-mongo-2 -n $env_name -o jsonpath='{.status.podIP}')
+          echo "MONGO_HOST=$MONGO_HOST1" >> $GITHUB_OUTPUT
+          echo "MONGO_HOST2=$MONGO_HOST2" >> $GITHUB_OUTPUT
+          echo "MONGO_HOST3=$MONGO_HOST3" >> $GITHUB_OUTPUT
+          cat .charts/charts/service/mongo-initiate.yaml
+          sed -e "s/\${SERVICE_NAME}/$SERVICE_NAME/g" \
+              -e "s/\${MONGO_HOST1}/$MONGO_HOST1/g" \
+              -e "s/\${MONGO_HOST2}/$MONGO_HOST2/g" \
+              -e "s/\${MONGO_HOST3}/$MONGO_HOST3/g" \
+              .charts/charts/service/mongo-initiate.yaml | kubectl apply --namespace $env_name  -f -
         
       - name: Fetch Redis IP
         shell: bash
@@ -689,7 +700,7 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
           echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
-          
+      
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
         id: slack
@@ -745,7 +756,7 @@ jobs:
                       },
                       {
                         "type": "mrkdwn",
-                        "text": "*DB Hosts:* Mysql- ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }}, Mongo- ${{ steps.fetchMongoIp.outputs.MONGO_HOST }}, Redis- ${{ steps.fetchRedisIp.outputs.REDIS_HOST }}"
+                        "text": "*DB Hosts:* Mysql- ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }}, Mongo- ${{ steps.fetchMongoIp.outputs.MONGO_HOST }},${{ steps.fetchMongoIp.outputs.MONGO_HOST2 }},${{ steps.fetchMongoIp.outputs.MONGO_HOST3 }}, Redis- ${{ steps.fetchRedisIp.outputs.REDIS_HOST }}"
                       }
                     ]
                   },
