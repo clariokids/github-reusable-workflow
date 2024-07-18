@@ -382,6 +382,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.token_github }}
           NODE_OPTIONS: '--max_old_space_size=8192'
+          
+      - name: Invalidate Cloudfront Cache
+        if: ${{ steps.website-deployment.conclusion }} == 'success'
+        run: aws cloudfront create-invalidation --distribution-id ${{ needs.provision-static-website.outputs.cloudfrontID }} --paths "/*"
 
       - name: Update status frontend
         if: ${{ steps.website-deployment.conclusion }} == 'success'
