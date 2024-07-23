@@ -469,6 +469,7 @@ jobs:
       dockerfile: ${{ steps.set-vars.outputs.dockerfile }}
       consumer: ${{ steps.set-vars.outputs.consumer }}
       organisation: ${{ steps.set-vars.outputs.organisation }}
+      queues: ${{ steps.set-vars.outputs.queues }}
     steps:
       - name: Set inputs as variables
         id: set-vars
@@ -614,6 +615,24 @@ jobs:
           token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github }}
           ref: ${{ inputs.branch_name }}
 
+      - name: Checkout Disposable AWS Resources
+        uses: actions/checkout@v2
+        if: ${{ needs.config.outputs.queues }} != ''
+        with:
+          repository: qoala-platform/disposable-aws-resources-action
+          token: ${{ secrets.token_github_platform_org }}
+          path: .github/actions/disposable-aws-resources-action
+
+      - name: Create Disposable AWS Resources
+        id: aws-resources
+        if: ${{ needs.config.outputs.queues }} != ''
+        uses: ./.github/actions/disposable-aws-resources-action
+        with:
+          environment: ${{ needs.config.outputs.environment}}
+          bu: ${{ inputs.bu }}
+          assumeRole: 'arn:aws:iam::744994327583:role/eks-qoala-dev-cluster-ci-role'
+          queues: ${{ needs.config.outputs.queues }}
+          
       - name: Checkout SSM Injection
         uses: actions/checkout@v2
         with:
