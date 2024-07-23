@@ -639,7 +639,7 @@ jobs:
           repository: qoala-platform/helm-values-ssm-injection
           token: ${{ secrets.token_github_platform_org }}
           path: .github/actions/helm-values-ssm-injection
-          ref: staging-factory-feature
+          ref: create-sqs
       
       - name: SSM Injection
         id: values
@@ -653,6 +653,7 @@ jobs:
           assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
           consumer: ${{ needs.config.outputs.consumer }}
           extraConfig: ${{ inputs.inputs_json }}
+          queues: ${{ needs.aws-resources.outputs.queues }}
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
