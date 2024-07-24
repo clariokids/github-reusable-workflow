@@ -630,7 +630,7 @@ jobs:
         with:
           environment: ${{ needs.config.outputs.environment}}
           bu: ${{ inputs.bu }}
-          assumeRole: 'arn:aws:iam::744994327583:role/eks-qoala-dev-cluster-ci-role'
+          assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
           queues: ${{ needs.config.outputs.queues }}
           
       - name: Checkout SSM Injection
