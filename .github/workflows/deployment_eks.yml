@@ -653,7 +653,7 @@ jobs:
           assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
           consumer: ${{ needs.config.outputs.consumer }}
           extraConfig: ${{ inputs.inputs_json }}
-          queues: ${{ needs.aws-resources.outputs.queues }}
+          queues: ${{ steps.aws-resources.outputs.queues }}
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
