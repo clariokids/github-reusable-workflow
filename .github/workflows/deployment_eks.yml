@@ -639,7 +639,7 @@ jobs:
           repository: qoala-platform/helm-values-ssm-injection
           token: ${{ secrets.token_github_platform_org }}
           path: .github/actions/helm-values-ssm-injection
-          ref: create-sqs
+          ref: staging-factory-feature
       
       - name: SSM Injection
         id: values
