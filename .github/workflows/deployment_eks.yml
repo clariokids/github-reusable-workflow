@@ -654,6 +654,7 @@ jobs:
           consumer: ${{ needs.config.outputs.consumer }}
           extraConfig: ${{ inputs.inputs_json }}
           queues: ${{ steps.aws-resources.outputs.queues }}
+          queues_url: ${{ steps.aws-resources.outputs.queues_url }}
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
