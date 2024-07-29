@@ -469,6 +469,7 @@ jobs:
       dockerfile: ${{ steps.set-vars.outputs.dockerfile }}
       consumer: ${{ steps.set-vars.outputs.consumer }}
       organisation: ${{ steps.set-vars.outputs.organisation }}
+      queues: ${{ steps.set-vars.outputs.queues }}
     steps:
       - name: Set inputs as variables
         id: set-vars
@@ -614,6 +615,24 @@ jobs:
           token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github }}
           ref: ${{ inputs.branch_name }}
 
+      - name: Checkout Disposable AWS Resources
+        uses: actions/checkout@v2
+        if: ${{ needs.config.outputs.queues }} != ''
+        with:
+          repository: qoala-platform/disposable-aws-resources-action
+          token: ${{ secrets.token_github_platform_org }}
+          path: .github/actions/disposable-aws-resources-action
+
+      - name: Create Disposable AWS Resources
+        id: aws-resources
+        if: ${{ needs.config.outputs.queues }} != ''
+        uses: ./.github/actions/disposable-aws-resources-action
+        with:
+          environment: ${{ needs.config.outputs.environment}}
+          bu: ${{ inputs.bu }}
+          assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
+          queues: ${{ needs.config.outputs.queues }}
+          
       - name: Checkout SSM Injection
         uses: actions/checkout@v2
         with:
@@ -634,6 +653,8 @@ jobs:
           assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
           consumer: ${{ needs.config.outputs.consumer }}
           extraConfig: ${{ inputs.inputs_json }}
+          queues: ${{ steps.aws-resources.outputs.queues }}
+          queues_url: ${{ steps.aws-resources.outputs.queues_url }}
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
