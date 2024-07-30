@@ -617,7 +617,7 @@ jobs:
 
       - name: Checkout Disposable AWS Resources
         uses: actions/checkout@v2
-        if: ${{ needs.config.outputs.queues }} != ''
+        if: ${{ needs.config.outputs.queues }}
         with:
           repository: qoala-platform/disposable-aws-resources-action
           token: ${{ secrets.token_github_platform_org }}
@@ -625,7 +625,7 @@ jobs:
 
       - name: Create Disposable AWS Resources
         id: aws-resources
-        if: ${{ needs.config.outputs.queues }} != ''
+        if: ${{ needs.config.outputs.queues }}
         uses: ./.github/actions/disposable-aws-resources-action
         with:
           environment: ${{ needs.config.outputs.environment}}
