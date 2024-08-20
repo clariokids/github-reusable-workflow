@@ -523,12 +523,18 @@ jobs:
         run: |
           GO_FILE_PATH=$(find . -name app.config.dev.yml -type f)
           NODE_FILE_PATH=$(find . -name app.config.js -type f)
+          NODE_FE_FILE_PATH=$(find . -name .env.dev -type f)
           PYTHON_FILE_PATH=$(find . -name environment.py -type f)
           if [ -f "$GO_FILE_PATH" ]; then
                 lab_file=$(find . -name app.config.lab.yml -type f)
                 cp $lab_file $GO_FILE_PATH
                 echo "Updated $GO_FILE_PATH"
                 cat $GO_FILE_PATH
+          elif [ -f "$NODE_FE_FILE_PATH" ]; then
+                lab_file=$(find . -name .env.lab -type f)
+                cp $lab_file $NODE_FE_FILE_PATH
+                echo "Updated $NODE_FE_FILE_PATH"
+                cat $NODE_FE_FILE_PATH
           elif [ -f "$NODE_FILE_PATH" ]; then
                 lab_file=$(find . -name app.config.lab.js -type f)
                 cp $lab_file $NODE_FILE_PATH
