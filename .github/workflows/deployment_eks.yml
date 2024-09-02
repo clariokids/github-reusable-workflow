@@ -342,7 +342,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: qoala-platform/s3-deploy-action
-          ref: 'v2'
+          ref: 'debug-missing-file-upload'
           token: ${{ secrets.token_github_platform_org }} # stored in GitHub secrets
           path: .github/actions/s3-deploy-action-v2
 
