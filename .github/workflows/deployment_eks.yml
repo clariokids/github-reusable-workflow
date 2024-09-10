@@ -525,9 +525,6 @@ jobs:
           NODE_FILE_PATH=$(find . -name app.config.js -type f)
           NODE_FE_FILE_PATH=$(find . -name .env.dev -type f)
           PYTHON_FILE_PATH=$(find . -name environment.py -type f)
-          if [ ! -f "$PYTHON_FILE_PATH" ]; then
-              PYTHON_FILE_PATH=$(find . -name env.py -type f)
-          fi
           if [ -f "$GO_FILE_PATH" ]; then
                 lab_file=$(find . -name app.config.lab.yml -type f)
                 cp $lab_file $GO_FILE_PATH
