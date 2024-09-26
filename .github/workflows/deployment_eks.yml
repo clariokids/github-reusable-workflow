@@ -894,7 +894,7 @@ jobs:
           repository: qoala-platform/knex-migration-action
           token: ${{ secrets.token_github_platform_org }}
           path: .github/actions/knex-migration-action
-          ref: improve/action
+          ref: staging-factory
 
       - uses: ./.github/actions/knex-migration-action
         if: steps.db-vars.outputs.lang == 'nodejs'
