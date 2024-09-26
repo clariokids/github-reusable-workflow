@@ -903,10 +903,10 @@ jobs:
         with:
           role_to_assume: ${{ needs.config.outputs.ssm_role_arn}}
           parameter_path: ${{ needs.config.outputs.ssm_path }}
-          db_name_key: ${{ inputs.db_name_key }}
-          db_host_key: ${{ inputs.db_host_key }}
-          db_user_key: ${{ inputs.db_user_key }}
-          db_password_key: ${{ inputs.db_password_key }}
+          db_name_key: ${{ steps.db-vars.outputs.name }}
+          db_host_key: ${{ needs.deploy.outputs.mysql_host }}
+          db_user_key: 'root'
+          db_password_key: '12345'
           with_seeder: ${{ inputs.with_seeder }}
           node_version: ${{ inputs.node_version }}
 
