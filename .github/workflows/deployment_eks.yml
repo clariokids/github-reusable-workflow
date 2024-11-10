@@ -587,6 +587,7 @@ jobs:
     outputs:
       deploy_mysql: ${{ steps.db-vars.outputs.deploy_mysql }}
       deploy_mongo: ${{ steps.db-vars.outputs.deploy_mongo }}
+      with_seeder: ${{ steps.db-vars.outputs.with_seeder }}
     steps:
       - name: Set inputs as variables
         id: db-vars
@@ -881,7 +882,7 @@ jobs:
           db_user_key: 'root'
           db_password_key: '12345'
           db_migration_path: ${{ steps.db-vars.outputs.migrationPath }}
-          with_seeder: ${{ inputs.with_seeder }}
+          with_seeder: ${{ steps.db-vars.outputs.with_seeder }}
           db_seeder_path: ${{ inputs.db_seeder_path }}
           go_version: ${{ inputs.go_version }}
       
@@ -905,7 +906,7 @@ jobs:
           db_host_key: ${{ needs.deploy.outputs.mysql_host }}
           db_user_key: 'root'
           db_password_key: '12345'
-          with_seeder: ${{ inputs.with_seeder }}
+          with_seeder: ${{ steps.db-vars.outputs.with_seeder }}
           node_version: ${{ inputs.node_version }}
 
       - name: DB Migration Python
