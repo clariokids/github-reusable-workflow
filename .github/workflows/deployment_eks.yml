@@ -318,10 +318,11 @@ jobs:
           aws-region: ap-southeast-1
           role-to-assume: arn:aws:iam::744994327583:role/eks-qoala-dev-cluster-ci-role
           role-duration-seconds: 3600
+          
       - name: Set node version
         uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: ${{ contains(github.repository, 'agent-app') && '18' || '14' }}
           cache: 'npm'
         env:
           GITHUB_TOKEN: ${{ secrets.token_github }}
