@@ -293,18 +293,18 @@ jobs:
             QAPP_DEV_HOST="https://api-${{ inputs.environment }}.lab.qoala.app"
             USER_SERVICE_DEV_HOST="https://api-${{ inputs.environment }}.lab.user.qoala.app/user-service"
           
-            if jq -e '.apiBaseUrlQPlus' "$CONFIG_FILE" > /dev/null; then
-              # Update both apiBaseUrlQPlus and apiBaseUrl
-              jq --arg key "apiBaseUrlQPlus" --arg value "$QPLUS_DEV_HOST" \
-                 --arg key2 "apiBaseUrl" --arg value2 "$QAPP_DEV_HOST" \
-                 '.[$key]=$value | .[$key2]=$value2' "$CONFIG_FILE" > temp.json && mv temp.json "$CONFIG_FILE"
-              echo "Updated apiBaseUrlQPlus and apiBaseUrl"
-            elif jq -e '.userServiceBaseUrl' "$CONFIG_FILE" > /dev/null; then
+            if jq -e '.userServiceBaseUrl' "$CONFIG_FILE" > /dev/null; then
               jq --arg key "userServiceBaseUrl" --arg value "$USER_SERVICE_DEV_HOST" \
                  --arg key2 "apiBaseUrl" --arg value2 "$QAPP_DEV_HOST" \
                  --arg key3 "apiBaseUrlQPlus" --arg value3 "$QPLUS_DEV_HOST" \
                  '.[$key]=$value | .[$key2]=$value2 | .[$key3]=$value3' "$CONFIG_FILE" > temp.json && mv temp.json "$CONFIG_FILE"
               echo "Updated userServiceBaseUrl, apiBaseUrl, and apiBaseUrlQPlus"
+            elif jq -e '.apiBaseUrlQPlus' "$CONFIG_FILE" > /dev/null; then
+              # Update both apiBaseUrlQPlus and apiBaseUrl
+              jq --arg key "apiBaseUrlQPlus" --arg value "$QPLUS_DEV_HOST" \
+                 --arg key2 "apiBaseUrl" --arg value2 "$QAPP_DEV_HOST" \
+                 '.[$key]=$value | .[$key2]=$value2' "$CONFIG_FILE" > temp.json && mv temp.json "$CONFIG_FILE"
+              echo "Updated apiBaseUrlQPlus and apiBaseUrl"
             else
               # Update only apiBaseUrl
               jq --arg key "apiBaseUrl" --arg value "$QPLUS_DEV_HOST" \
