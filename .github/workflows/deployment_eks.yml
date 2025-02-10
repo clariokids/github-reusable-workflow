@@ -291,7 +291,7 @@ jobs:
           if [ -f "$CONFIG_FILE" ]; then
             QPLUS_DEV_HOST="https://api-${{ inputs.environment }}.lab.qoalaplus.com"
             QAPP_DEV_HOST="https://api-${{ inputs.environment }}.lab.qoala.app"
-            USER_SERVICE_DEV_HOST="https://api-${{ inputs.environment }}.lab.user.qoala.app/user-service"
+            USER_SERVICE_DEV_HOST="https://api-${{ inputs.environment }}.lab.user.qoala.app"
           
             if jq -e '.userServiceBaseUrl' "$CONFIG_FILE" > /dev/null; then
               jq --arg key "userServiceBaseUrl" --arg value "$USER_SERVICE_DEV_HOST" \
