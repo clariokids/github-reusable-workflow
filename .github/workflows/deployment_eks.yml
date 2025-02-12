@@ -659,7 +659,7 @@ jobs:
           
       - name: Checkout SSM Injection
         uses: actions/checkout@v2
-        if : inputs.bu != 'fairdee'
+        if : inputs.repo_name != 'vouch-api' && inputs.repo_name != 'thailand-portal' && inputs.repo_name != 'fairdee-portal'
         with:
           repository: qoala-platform/helm-values-ssm-injection
           token: ${{ secrets.token_github_platform_org }}
@@ -668,7 +668,7 @@ jobs:
            
       - name: Checkout SSM Injection Fairdee
         uses: actions/checkout@v2
-        if : inputs.bu == 'fairdee'
+        if : inputs.repo_name == 'vouch-api'
         with:
           repository: qoala-platform/helm-values-ssm-injection
           token: ${{ secrets.token_github_platform_org }}
@@ -691,15 +691,15 @@ jobs:
           queues: ${{ steps.aws-resources.outputs.queues }}
           queues_url: ${{ steps.aws-resources.outputs.queues_url }}
 
-      - name: Deploy service
-        id: helm-cat
-        shell: bash
-        run: |
-          cat ${{ steps.values.outputs.values }}
+      # - name: Deploy service
+      #   id: helm-cat
+      #   shell: bash
+      #   run: |
+      #     cat ${{ steps.values.outputs.values }}
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
-        if : inputs.bu != 'fairdee'
+        if : inputs.repo_name != 'vouch-api'
         with:
           repository: qoala-platform/setup-eks-helm-action
           token: ${{ secrets.token_github_platform_org }}
@@ -708,7 +708,7 @@ jobs:
 
       - name: Checkout GitHub Action Repo Fairdee
         uses: actions/checkout@v2
-        if : inputs.bu == 'fairdee'
+        if : inputs.repo_name == 'vouch-api'
         with:
           repository: qoala-platform/setup-eks-helm-action
           token: ${{ secrets.token_github_platform_org }}
@@ -724,7 +724,7 @@ jobs:
  
       - name: Deploy service
         id: helm
-        if : inputs.bu != 'fairdee'
+        if : inputs.repo_name != 'vouch-api' && inputs.repo_name != 'thailand-portal' && inputs.repo_name != 'fairdee-portal'
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
@@ -736,7 +736,7 @@ jobs:
 
       - name: Deploy service Fairdee
         id: helm-fairdee
-        if : inputs.bu == 'fairdee'
+        if : inputs.repo_name == 'vouch-api'
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
@@ -745,7 +745,26 @@ jobs:
             exit 1
           fi
           kubectl annotate --overwrite namespace $env_name staging-factory=true
-          
+
+      - name: Deploy service Fairdee FE
+        id: helm-fairdee-fe
+        if : inputs.repo_name == 'fairdee-portal' && inputs.repo_name == 'fairdee-portal'
+        shell: bash
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          cd ${{ inputs.repo_name }}/deployment/dev
+          for file in ${{ inputs.repo_name }}/deployment/dev/*; do
+            filename=$(basename "$file")
+            # Skip the excluded files
+            if [[ "$filename" != "10-deployment.yml" && "$filename" != "05-ingress.yml" && "$filename" != "00-config.yml" ]]; then
+              kubectl -n $env_name apply -f "$file"
+            fi
+          done
+          sed "s|__DOCKER_IMAGE__|${{ needs.build.outputs.image_registry }}/${{inputs.service_name }}:${{ needs.build.outputs.image_tag }}|g" 10-deployment.yml | kubectl -n $env_name apply -f -
+          sed "s|__STAGE__|${{ env_name }}|g" 05-ingress.yml | kubectl -n $env_name apply -f -
+          sed "s|__STAGE__|${{ env_name }}|g" 00-config.yml | kubectl -n $env_name apply -f -
+          kubectl annotate --overwrite namespace $env_name staging-factory=true
+
       - name: Extend env lifetime
         shell: bash
         if: ${{ inputs.lifetime }} != ''
@@ -818,6 +837,10 @@ jobs:
                       {
                         "type": "mrkdwn",
                         "text": "*Application:* ${{ inputs.repo_name }}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*BU:* ${{ inputs.bu }}"
                       },
                       {
                         "type": "mrkdwn",
