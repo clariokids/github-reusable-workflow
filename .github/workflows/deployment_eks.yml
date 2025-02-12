@@ -752,13 +752,13 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-      #     cd ${{ inputs.repo_name }}/deployment/dev
-      #     for file in ${{ inputs.repo_name }}/deployment/dev/*; do
-      #       filename=$(basename "$file")
-      #       if [[ "$filename" != "10-deployment.yml" && "$filename" != "05-ingress.yml" && "$filename" != "00-config.yml" ]]; then
-      #         kubectl -n $env_name apply -f "$file"
-      #       fi
-      #     done
+          cd ${{ inputs.repo_name }}/deployment/dev
+          for file in ${{ inputs.repo_name }}/deployment/dev/*; do
+            filename=$(basename "$file")
+            if [[ "$filename" != "10-deployment.yml" && "$filename" != "05-ingress.yml" && "$filename" != "00-config.yml" ]]; then
+              kubectl -n $env_name apply -f "$file"
+            fi
+          done
       #     sed "s|__DOCKER_IMAGE__|${{ needs.build.outputs.image_registry }}/${{inputs.service_name }}:${{ needs.build.outputs.image_tag }}|g" 10-deployment.yml | kubectl -n $env_name apply -f -
       #     sed "s|__STAGE__|${{ env_name }}|g" 05-ingress.yml | kubectl -n $env_name apply -f -
       #     sed "s|__STAGE__|${{ env_name }}|g" 00-config.yml | kubectl -n $env_name apply -f -
