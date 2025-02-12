@@ -691,11 +691,11 @@ jobs:
           queues: ${{ steps.aws-resources.outputs.queues }}
           queues_url: ${{ steps.aws-resources.outputs.queues_url }}
 
-      # - name: Deploy service
-      #   id: helm-cat
-      #   shell: bash
-      #   run: |
-      #     cat ${{ steps.values.outputs.values }}
+      - name: Deploy service
+        id: helm-cat
+        shell: bash
+        run: |
+          cat ${{ steps.values.outputs.values }}
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
