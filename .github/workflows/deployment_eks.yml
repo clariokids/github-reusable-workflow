@@ -536,6 +536,14 @@ jobs:
           token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github }}
           ref: ${{ inputs.branch_name }}
 
+      - name: Check path  
+        shell: bash
+        run: |
+          echo "Checking path"
+          echo ${{ inputs.repo_name }}
+          ls -la
+          pwd
+          
       - name: Modify config file
         if: inputs.repo_name != ''
         run: |
@@ -753,13 +761,13 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          cd ${{ inputs.repo_name }}/deployment/dev
-          for file in ${{ inputs.repo_name }}/deployment/dev/*; do
+          for file in deployment/dev/*; do
             filename=$(basename "$file")
             if [[ "$filename" != "10-deployment.yml" && "$filename" != "05-ingress.yml" && "$filename" != "00-config.yml" ]]; then
               kubectl -n $env_name apply -f "$file"
             fi
           done
+          cd deployment/dev
           sed "s|__DOCKER_IMAGE__|${{ needs.build.outputs.image_registry }}/${{inputs.service_name }}:${{ needs.build.outputs.image_tag }}|g" 10-deployment.yml | kubectl -n $env_name apply -f -
           sed "s|__STAGE__|$env_name|g" 05-ingress.yml | kubectl -n $env_name apply -f -
           sed "s|__STAGE__|$env_name|g" 00-config.yml | kubectl -n $env_name apply -f -
