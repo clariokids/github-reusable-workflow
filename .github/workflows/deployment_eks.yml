@@ -759,10 +759,10 @@ jobs:
               kubectl -n $env_name apply -f "$file"
             fi
           done
-      #     sed "s|__DOCKER_IMAGE__|${{ needs.build.outputs.image_registry }}/${{inputs.service_name }}:${{ needs.build.outputs.image_tag }}|g" 10-deployment.yml | kubectl -n $env_name apply -f -
-      #     sed "s|__STAGE__|${{ env_name }}|g" 05-ingress.yml | kubectl -n $env_name apply -f -
-      #     sed "s|__STAGE__|${{ env_name }}|g" 00-config.yml | kubectl -n $env_name apply -f -
-      #     kubectl annotate --overwrite namespace $env_name staging-factory=true
+          sed "s|__DOCKER_IMAGE__|${{ needs.build.outputs.image_registry }}/${{inputs.service_name }}:${{ needs.build.outputs.image_tag }}|g" 10-deployment.yml | kubectl -n $env_name apply -f -
+          sed "s|__STAGE__|$env_name|g" 05-ingress.yml | kubectl -n $env_name apply -f -
+          sed "s|__STAGE__|$env_name|g" 00-config.yml | kubectl -n $env_name apply -f -
+          kubectl annotate --overwrite namespace $env_name staging-factory=true
 
       - name: Extend env lifetime
         shell: bash
