@@ -740,7 +740,7 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }} .charts/charts/django -f ${{ steps.values.outputs.values }}; then
+          if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }} .charts/charts/django -f ${{ steps.values.outputs.values }} --set image.tag=${{ needs.build.outputs.image_tag }}; then
             echo "Helm upgrade/install failed. Check logs in grafana for details."
             exit 1
           fi
