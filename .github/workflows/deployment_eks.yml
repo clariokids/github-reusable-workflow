@@ -746,12 +746,12 @@ jobs:
           fi
           kubectl annotate --overwrite namespace $env_name staging-factory=true
 
-      # - name: Deploy service Fairdee FE
-      #   id: helm-fairdee-fe
-      #   if : inputs.repo_name == 'fairdee-portal' || inputs.repo_name == 'fairdee-portal'
-      #   shell: bash
-      #   run: |
-      #     env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+      - name: Deploy service Fairdee FE
+        id: helm-fairdee-fe
+        if : inputs.repo_name == 'fairdee-portal' || inputs.repo_name == 'fairdee-portal'
+        shell: bash
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
       #     cd ${{ inputs.repo_name }}/deployment/dev
       #     for file in ${{ inputs.repo_name }}/deployment/dev/*; do
       #       filename=$(basename "$file")
