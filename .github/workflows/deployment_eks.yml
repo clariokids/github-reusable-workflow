@@ -749,7 +749,7 @@ jobs:
 
       - name: Deploy service Fairdee FE
         id: helm-fairdee-fe
-        if : inputs.repo_name == 'fairdee-portal' || inputs.repo_name == 'fairdee-portal'
+        if : inputs.repo_name == 'fairdee-portal' || inputs.repo_name == 'thailand-portal'
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
