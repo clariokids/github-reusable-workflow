@@ -691,19 +691,29 @@ jobs:
           queues: ${{ steps.aws-resources.outputs.queues }}
           queues_url: ${{ steps.aws-resources.outputs.queues_url }}
 
-      - name: Deploy service
-        id: helm-cat
-        shell: bash
-        run: |
-          cat ${{ steps.values.outputs.values }}
+      # - name: Deploy service
+      #   id: helm-cat
+      #   shell: bash
+      #   run: |
+      #     cat ${{ steps.values.outputs.values }}
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
+        if : inputs.bu != 'fairdee'
         with:
           repository: qoala-platform/setup-eks-helm-action
           token: ${{ secrets.token_github_platform_org }}
           path: .github/actions/setup-eks-helm-action
           ref: staging-factory-feature
+
+      - name: Checkout GitHub Action Repo Fairdee
+        uses: actions/checkout@v2
+        if : inputs.bu == 'fairdee'
+        with:
+          repository: qoala-platform/setup-eks-helm-action
+          token: ${{ secrets.token_github_platform_org }}
+          path: .github/actions/setup-eks-helm-action
+          ref: sf-fairdee       
 
       - uses: ./.github/actions/setup-eks-helm-action
         with:
@@ -714,6 +724,7 @@ jobs:
  
       - name: Deploy service
         id: helm
+        if : inputs.bu != 'fairdee'
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
@@ -723,6 +734,18 @@ jobs:
           fi
           kubectl annotate --overwrite namespace $env_name staging-factory=true
 
+      - name: Deploy service Fairdee
+        id: helm-fairdee
+        if : inputs.bu == 'fairdee'
+        shell: bash
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }} .charts/charts/django -f ${{ steps.values.outputs.values }}; then
+            echo "Helm upgrade/install failed. Check logs in grafana for details."
+            exit 1
+          fi
+          kubectl annotate --overwrite namespace $env_name staging-factory=true
+          
       - name: Extend env lifetime
         shell: bash
         if: ${{ inputs.lifetime }} != ''
