@@ -834,9 +834,9 @@ jobs:
             echo "Helm upgrade/install failed. Check logs in grafana for details."
             exit 1
           fi
-          
+
       - name: Update status
-        if: ${{ steps.helm.conclusion }} == 'success'
+        if: ${{ steps.helm.conclusion }} == 'success' || ${{ steps.helm-fairdee.conclusion }} == 'success'
         id: slack
         uses: slackapi/slack-github-action@v1.24.0
         env:
