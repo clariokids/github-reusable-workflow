@@ -700,12 +700,6 @@ jobs:
           queues: ${{ steps.aws-resources.outputs.queues }}
           queues_url: ${{ steps.aws-resources.outputs.queues_url }}
 
-      # - name: Deploy service
-      #   id: helm-cat
-      #   shell: bash
-      #   run: |
-      #     cat ${{ steps.values.outputs.values }}
-
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
         if : inputs.repo_name != 'vouch-api'
@@ -920,7 +914,7 @@ jobs:
     name: DB Migration
     needs: [config,  deploy, check_db_deploy]
     runs-on: [ self-hosted, eks-runner ]
-    if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql == 'true' || needs.check_db_deploy.outputs.deploy_mongo == 'true' || needs.config.outputs.consumer != 'true'
+    if: inputs.static_s3_website == false && inputs.bu != 'fairdee' && needs.check_db_deploy.outputs.deploy_mysql == 'true' || needs.check_db_deploy.outputs.deploy_mongo == 'true' || needs.config.outputs.consumer != 'true'
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
