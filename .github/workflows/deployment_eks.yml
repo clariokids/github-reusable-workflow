@@ -755,6 +755,17 @@ jobs:
           fi
           kubectl annotate --overwrite namespace $env_name staging-factory=true
 
+      - name: Deploy service Fairdee Migration
+        id: helm-fairdee-migration
+        if : inputs.repo_name == 'vouch-api'
+        shell: bash
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }}-migration .charts/charts/django-migration -f ${{ steps.values.outputs.values }} --set image.tag=${{ needs.build.outputs.image_tag }}; then
+            echo "Helm upgrade/install failed. Check logs in grafana for details."
+            exit 1
+          fi
+          
       - name: Deploy service Fairdee FE
         id: helm-fairdee-fe
         if : inputs.repo_name == 'fairdee-portal' || inputs.repo_name == 'thailand-portal'
