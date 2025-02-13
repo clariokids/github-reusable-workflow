@@ -522,7 +522,7 @@ jobs:
     if: inputs.static_s3_website == false
     outputs:
       image_registry: ${{ steps.publish_image.outputs.image_registry }}
-      image_tag: ${{ (needs.config.outputs.dockerfile == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
+      image_tag: ${{ (needs.config.outputs.consumer == 'true' && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -596,13 +596,13 @@ jobs:
           ecr_name: ${{ inputs.ecr_name || inputs.service_name}}
           role-to-assume: ${{ needs.config.outputs.build_role_arn }}
           dockerfile: ${{ (needs.config.outputs.dockerfile != '' && needs.config.outputs.dockerfile) || 'Dockerfile' }}
-          ecr_cache_tag: ${{ (needs.config.outputs.consumer == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment) }}
+          ecr_cache_tag: ${{ (needs.config.outputs.consumer == 'true' && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment) }}
           build_args: |
             GITHUB_TOKEN=${{ secrets.token_github }}
             CONSUMER=${{ needs.config.outputs.consumer }}
           custom_tags: |
-            ${{ (needs.config.outputs.consumer == true && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment)}}
-            ${{ (needs.config.outputs.consumer == true && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
+            ${{ (needs.config.outputs.consumer == 'true' && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment)}}
+            ${{ (needs.config.outputs.consumer == 'true' && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
 
    
   check_db_deploy: 
@@ -689,8 +689,7 @@ jobs:
         uses: ./.github/actions/helm-values-ssm-injection
         with:
           image: ${{ needs.build.outputs.image_registry }}/${{ inputs.ecr_name || inputs.service_name }}:${{ needs.build.outputs.image_tag }}
-          imagetag: ${{ needs.build.outputs.image_tag }}
-          environment: ${{ (needs.config.outputs.consumer == true && format('{0}-{1}', needs.config.outputs.environment, 'consumer')) || needs.config.outputs.environment}}
+          environment: ${{ (needs.config.outputs.consumer == 'true' && format('{0}-{1}', needs.config.outputs.environment, 'consumer')) || needs.config.outputs.environment}}
           configPath: ${{ inputs.config_path }}
           serviceName: ${{ inputs.service_name }}
           bu: ${{ inputs.bu }}
