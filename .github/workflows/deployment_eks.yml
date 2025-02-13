@@ -760,7 +760,7 @@ jobs:
         if : inputs.repo_name == 'vouch-api'
         shell: bash
         run: |
-          sleep 200
+          sleep 20
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }}-migration .charts/charts/django-migration -f ${{ steps.values.outputs.values }} --set image.tag=${{ needs.build.outputs.image_tag }}; then
             echo "Helm upgrade/install failed. Check logs in grafana for details."
@@ -836,6 +836,8 @@ jobs:
         if: inputs.repo_name == 'vouch-api'
         run: |
           echo "Downloading dump"
+          sudo apt-get update -y
+          sudo apt-get install mysql-client -y
           aws s3 ls
           aws s3 cp s3://staging-factory/vouch-api/yoat_dump_30_03_2024.sql - | mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 vouch
           echo "Uploaded dump"
