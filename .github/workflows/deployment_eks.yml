@@ -754,18 +754,6 @@ jobs:
             exit 1
           fi
           kubectl annotate --overwrite namespace $env_name staging-factory=true
-
-      - name: Deploy service Fairdee Migration
-        id: helm-fairdee-migration
-        if : inputs.repo_name == 'vouch-api'
-        shell: bash
-        run: |
-          sleep 20
-          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
-          if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }}-migration .charts/charts/django-migration -f ${{ steps.values.outputs.values }} --set image.tag=${{ needs.build.outputs.image_tag }}; then
-            echo "Helm upgrade/install failed. Check logs in grafana for details."
-            exit 1
-          fi
           
       - name: Deploy service Fairdee FE
         id: helm-fairdee-fe
@@ -841,10 +829,17 @@ jobs:
           aws s3 ls
           aws s3 cp s3://staging-factory/vouch-api/yoat_dump_30_03_2024.sql - | mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 vouch
           echo "Uploaded dump"
-          # aws s3 cp s3://qoala-staging-factory/dump/vouch-api/dump.sql /tmp/dump.sql
-          # echo "Downloaded dump file to /tmp/dump.sql"
-          # echo "Uploading dump"
-          # mysql restore -h $MYSQL_HOST -u root -p12345 vouch < /tmp/dump.sql  
+
+      - name: Deploy service Fairdee Migration
+        id: helm-fairdee-migration
+        if : inputs.repo_name == 'vouch-api'
+        shell: bash
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }}-migration .charts/charts/django-migration -f ${{ steps.values.outputs.values }} --set image.tag=${{ needs.build.outputs.image_tag }}; then
+            echo "Helm upgrade/install failed. Check logs in grafana for details."
+            exit 1
+          fi
           
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
