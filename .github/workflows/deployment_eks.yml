@@ -760,6 +760,7 @@ jobs:
         if : inputs.repo_name == 'vouch-api'
         shell: bash
         run: |
+          sleep 200
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }}-migration .charts/charts/django-migration -f ${{ steps.values.outputs.values }} --set image.tag=${{ needs.build.outputs.image_tag }}; then
             echo "Helm upgrade/install failed. Check logs in grafana for details."
