@@ -819,7 +819,17 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
           echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
-      
+          
+      - name: Upload Dump Fairdee      
+        if: inputs.repo_name == 'vouch-api'
+        run: |
+          echo "Downloading dump"
+          aws s3 ls
+          # aws s3 cp s3://qoala-staging-factory/dump/vouch-api/dump.sql /tmp/dump.sql
+          # echo "Downloaded dump file to /tmp/dump.sql"
+          # echo "Uploading dump"
+          # mysql restore -h $MYSQL_HOST -u root -p12345 vouch < /tmp/dump.sql  
+          
       - name: Update status
         if: ${{ steps.helm.conclusion }} == 'success'
         id: slack
