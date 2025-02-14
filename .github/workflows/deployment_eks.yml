@@ -754,6 +754,7 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          kubectl create ns $env_name --dry-run=client -o yaml | kubectl apply -f -
           kubectl create ns $env_name
           for file in deployment/dev/*; do
             filename=$(basename "$file")
@@ -831,7 +832,8 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install mysql-client -y
           aws s3 ls
-          aws s3 cp s3://staging-factory/vouch-api/yoat_dump_30_03_2024.sql - | mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345
+          mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 -e "CREATE DATABASE IF NOT EXISTS vouch CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          aws s3 cp s3://staging-factory/vouch-api/yoat_dump_30_03_2024.sql - | mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 vouch
           echo "Uploaded dump"
 
       - name: Deploy service Fairdee Migration
