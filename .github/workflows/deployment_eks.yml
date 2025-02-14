@@ -536,6 +536,14 @@ jobs:
           token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github }}
           ref: ${{ inputs.branch_name }}
 
+      - name: Check path  
+        shell: bash
+        run: |
+          echo "Checking path"
+          echo ${{ inputs.repo_name }}
+          ls -la
+          pwd
+          
       - name: Modify config file
         if: inputs.repo_name != ''
         run: |
@@ -659,14 +667,25 @@ jobs:
           
       - name: Checkout SSM Injection
         uses: actions/checkout@v2
+        if : inputs.repo_name != 'vouch-api' && inputs.repo_name != 'thailand-portal' && inputs.repo_name != 'fairdee-portal'
         with:
           repository: qoala-platform/helm-values-ssm-injection
           token: ${{ secrets.token_github_platform_org }}
           path: .github/actions/helm-values-ssm-injection
           ref: staging-factory-feature
-      
+           
+      - name: Checkout SSM Injection Fairdee
+        uses: actions/checkout@v2
+        if : inputs.repo_name == 'vouch-api'
+        with:
+          repository: qoala-platform/helm-values-ssm-injection
+          token: ${{ secrets.token_github_platform_org }}
+          path: .github/actions/helm-values-ssm-injection
+          ref: sf-fairdee
+          
       - name: SSM Injection
         id: values
+        if: inputs.repo_name != 'thailand-portal' && inputs.repo_name != 'fairdee-portal'
         uses: ./.github/actions/helm-values-ssm-injection
         with:
           image: ${{ needs.build.outputs.image_registry }}/${{ inputs.ecr_name || inputs.service_name }}:${{ needs.build.outputs.image_tag }}
@@ -674,7 +693,7 @@ jobs:
           configPath: ${{ inputs.config_path }}
           serviceName: ${{ inputs.service_name }}
           bu: ${{ inputs.bu }}
-          assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
+          assumeRole: ${{ (inputs.bu == 'qplus' && 'arn:aws:iam::631836213257:role/qoalaplus-devops-ci-role') || (inputs.bu == 'fairdee' && 'arn:aws:iam::293096220586:role/fairdee-backend-ci-role') || 'arn:aws:iam::733346176650:role/devops-ci-role'}}
           consumer: ${{ needs.config.outputs.consumer }}
           extraConfig: ${{ inputs.inputs_json }}
           queues: ${{ steps.aws-resources.outputs.queues }}
@@ -682,11 +701,21 @@ jobs:
 
       - name: Checkout GitHub Action Repo
         uses: actions/checkout@v2
+        if : inputs.repo_name != 'vouch-api'
         with:
           repository: qoala-platform/setup-eks-helm-action
           token: ${{ secrets.token_github_platform_org }}
           path: .github/actions/setup-eks-helm-action
           ref: staging-factory-feature
+
+      - name: Checkout GitHub Action Repo Fairdee
+        uses: actions/checkout@v2
+        if : inputs.repo_name == 'vouch-api'
+        with:
+          repository: qoala-platform/setup-eks-helm-action
+          token: ${{ secrets.token_github_platform_org }}
+          path: .github/actions/setup-eks-helm-action
+          ref: sf-fairdee       
 
       - uses: ./.github/actions/setup-eks-helm-action
         with:
@@ -697,6 +726,7 @@ jobs:
  
       - name: Deploy service
         id: helm
+        if : inputs.repo_name != 'vouch-api' && inputs.repo_name != 'thailand-portal' && inputs.repo_name != 'fairdee-portal'
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
@@ -704,6 +734,37 @@ jobs:
             echo "Helm upgrade/install failed. Check logs in grafana for details."
             exit 1
           fi
+          kubectl annotate --overwrite namespace $env_name staging-factory=true
+
+      - name: Deploy service Fairdee
+        id: helm-fairdee
+        if : inputs.repo_name == 'vouch-api'
+        shell: bash
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }} .charts/charts/django -f ${{ steps.values.outputs.values }} --set image.tag=${{ needs.build.outputs.image_tag }}; then
+            echo "Helm upgrade/install failed. Check logs in grafana for details."
+            exit 1
+          fi
+          kubectl annotate --overwrite namespace $env_name staging-factory=true
+          
+      - name: Deploy service Fairdee FE
+        id: helm-fairdee-fe
+        if : inputs.repo_name == 'fairdee-portal' || inputs.repo_name == 'thailand-portal'
+        shell: bash
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          kubectl create ns $env_name --dry-run=client -o yaml | kubectl apply -f -
+          for file in deployment/dev/*; do
+            filename=$(basename "$file")
+            if [[ "$filename" != "10-deployment.yml" && "$filename" != "05-ingress.yml" && "$filename" != "00-config.yml" ]]; then
+              kubectl -n $env_name apply -f "$file"
+            fi
+          done
+          cd deployment/dev
+          sed "s|__DOCKER_IMAGE__|${{ needs.build.outputs.image_registry }}/${{inputs.service_name }}:${{ needs.build.outputs.image_tag }}|g" 10-deployment.yml | kubectl -n $env_name apply -f -
+          sed "s|__STAGE__|$env_name|g" 05-ingress.yml | kubectl -n $env_name apply -f -
+          sed "s|__STAGE__|$env_name|g" 00-config.yml | kubectl -n $env_name apply -f -
           kubectl annotate --overwrite namespace $env_name staging-factory=true
 
       - name: Extend env lifetime
@@ -752,9 +813,41 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
           echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
-      
+
+      - name: Set inputs as variables
+        id: db-vars
+        run: |
+          echo "Setting environment variables from JSON input"
+          echo ${{ needs.deploy.outputs.mysql_host }}
+          echo '${{ needs.config.outputs.db_conf }}' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
+            echo "$key=$value"
+            echo "$key=$value" >> $GITHUB_OUTPUT
+          done
+          
+      - name: Upload Dump Fairdee      
+        if: inputs.repo_name == 'vouch-api' && steps.db-vars.outputs.upload_dump == 'true'
+        run: |
+          echo "Downloading dump"
+          sudo apt-get update -y
+          sudo apt-get install mysql-client -y
+          aws s3 ls
+          mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 -e "CREATE DATABASE IF NOT EXISTS vouch CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          aws s3 cp s3://staging-factory/vouch-api/yoat_dump_30_03_2024.sql - | mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 vouch
+          echo "Uploaded dump"
+
+      - name: Deploy service Fairdee Migration
+        id: helm-fairdee-migration
+        if : inputs.repo_name == 'vouch-api' 
+        shell: bash
+        run: |
+          env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }}-migration .charts/charts/django-migration -f ${{ steps.values.outputs.values }} --set image.tag=${{ needs.build.outputs.image_tag }}; then
+            echo "Helm upgrade/install failed. Check logs in grafana for details."
+            exit 1
+          fi
+
       - name: Update status
-        if: ${{ steps.helm.conclusion }} == 'success'
+        if: ${{ steps.helm.conclusion }} == 'success' || ${{ steps.helm-fairdee.conclusion }} == 'success'
         id: slack
         uses: slackapi/slack-github-action@v1.24.0
         env:
@@ -778,6 +871,10 @@ jobs:
                       {
                         "type": "mrkdwn",
                         "text": "*Application:* ${{ inputs.repo_name }}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*BU:* ${{ inputs.bu }}"
                       },
                       {
                         "type": "mrkdwn",
@@ -828,7 +925,7 @@ jobs:
     name: DB Migration
     needs: [config,  deploy, check_db_deploy]
     runs-on: [ self-hosted, eks-runner ]
-    if: inputs.static_s3_website == false && needs.check_db_deploy.outputs.deploy_mysql == 'true' || needs.check_db_deploy.outputs.deploy_mongo == 'true' || needs.config.outputs.consumer != 'true'
+    if: inputs.static_s3_website == false && inputs.bu != 'fairdee' && needs.check_db_deploy.outputs.deploy_mysql == 'true' || needs.check_db_deploy.outputs.deploy_mongo == 'true' || needs.config.outputs.consumer != 'true'
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -880,7 +977,7 @@ jobs:
 
       - name: Get DB Dump from RDS and Upload to MySQL Host
         shell: bash
-        if: steps.db-vars.outputs.upload_dump == 'true'
+        if: steps.db-vars.outputs.upload_dump == 'true' && inputs.repo_name != 'vouch-api' 
         run: |
               sudo apt-get update -y
               sudo apt-get install mysql-client -y
@@ -933,7 +1030,7 @@ jobs:
           node_version: ${{ inputs.node_version }}
 
       - name: DB Migration Python
-        if: steps.db-vars.outputs.lang == 'python'
+        if: steps.db-vars.outputs.lang == 'python' && inputs.repo_name != 'vouch-api'
         id: status_db_migration
         shell: bash
         run: |
