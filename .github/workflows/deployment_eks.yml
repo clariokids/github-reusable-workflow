@@ -742,6 +742,14 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          NAMESPACE_EXISTS=false
+          if kubectl get namespace $env_name >/dev/null 2>&1; then
+            NAMESPACE_EXISTS=true
+            echo "Namespace $env_name exists"
+          else 
+            echo "Namespace $env_name does not exist"
+          fi
+          echo "namespace_exists=$NAMESPACE_EXISTS" >> $GITHUB_OUTPUT
           if ! helm upgrade --install --atomic --wait --namespace $env_name --create-namespace ${{ steps.values.outputs.service_name }} .charts/charts/django -f ${{ steps.values.outputs.values }} --set image.tag=${{ needs.build.outputs.image_tag }}; then
             echo "Helm upgrade/install failed. Check logs in grafana for details."
             exit 1
@@ -825,7 +833,7 @@ jobs:
           done
           
       - name: Upload Dump Fairdee      
-        if: inputs.repo_name == 'vouch-api' && steps.db-vars.outputs.upload_dump == 'true'
+        if: inputs.repo_name == 'vouch-api' && steps.db-vars.outputs.upload_dump == 'true' && steps.helm-fairdee.outputs.namespace_exists == 'false'
         run: |
           echo "Downloading dump"
           sudo apt-get update -y
@@ -837,7 +845,7 @@ jobs:
 
       - name: Deploy service Fairdee Migration
         id: helm-fairdee-migration
-        if : inputs.repo_name == 'vouch-api' 
+        if : inputs.repo_name == 'vouch-api'
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
