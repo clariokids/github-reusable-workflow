@@ -754,10 +754,11 @@ jobs:
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
+          kubectl create ns $env_name
           for file in deployment/dev/*; do
             filename=$(basename "$file")
             if [[ "$filename" != "10-deployment.yml" && "$filename" != "05-ingress.yml" && "$filename" != "00-config.yml" ]]; then
-              kubectl -n $env_name --create-namespace apply -f "$file"
+              kubectl -n $env_name apply -f "$file"
             fi
           done
           cd deployment/dev
