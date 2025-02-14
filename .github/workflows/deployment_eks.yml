@@ -755,7 +755,6 @@ jobs:
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           kubectl create ns $env_name --dry-run=client -o yaml | kubectl apply -f -
-          kubectl create ns $env_name
           for file in deployment/dev/*; do
             filename=$(basename "$file")
             if [[ "$filename" != "10-deployment.yml" && "$filename" != "05-ingress.yml" && "$filename" != "00-config.yml" ]]; then
