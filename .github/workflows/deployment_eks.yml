@@ -897,7 +897,7 @@ jobs:
                     "fields": [
                       {
                         "type": "mrkdwn",
-                        "text": "*API Host:* https://${{ steps.values.outputs.host }}"
+                        "text": "*API Host:* ${{ inputs.repo_name == 'fairdee-portal' && format('https://admin-{0}.lab.fairdee.co.th/', inputs.environment) || inputs.repo_name == 'thailand-portal' && format('https://m-{0}.fairdee.co.th/', inputs.environment) || format('https://{0}', steps.values.outputs.host) }}"
                       },
                       {
                         "type": "mrkdwn",
