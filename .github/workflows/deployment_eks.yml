@@ -833,7 +833,7 @@ jobs:
           done
           
       - name: Upload Dump Fairdee      
-        if: inputs.repo_name == 'vouch-api' && steps.db-vars.outputs.upload_dump == 'true' && steps.helm-fairdee.outputs.namespace_exists == 'false'
+        if: inputs.repo_name == 'vouch-api' && steps.db-vars.outputs.upload_dump == 'true'
         run: |
           echo "Downloading dump"
           sudo apt-get update -y
