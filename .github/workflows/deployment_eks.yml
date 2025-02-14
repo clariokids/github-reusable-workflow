@@ -814,7 +814,7 @@ jobs:
           echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
           
       - name: Upload Dump Fairdee      
-        if: inputs.repo_name == 'vouch-api'
+        if: inputs.repo_name == 'vouch-api' && steps.db-vars.outputs.upload_dump == 'true'
         run: |
           echo "Downloading dump"
           sudo apt-get update -y
@@ -825,7 +825,7 @@ jobs:
 
       - name: Deploy service Fairdee Migration
         id: helm-fairdee-migration
-        if : inputs.repo_name == 'vouch-api'
+        if : inputs.repo_name == 'vouch-api' 
         shell: bash
         run: |
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
@@ -965,7 +965,7 @@ jobs:
 
       - name: Get DB Dump from RDS and Upload to MySQL Host
         shell: bash
-        if: steps.db-vars.outputs.upload_dump == 'true'
+        if: steps.db-vars.outputs.upload_dump == 'true' && inputs.repo_name != 'vouch-api' 
         run: |
               sudo apt-get update -y
               sudo apt-get install mysql-client -y
@@ -1018,7 +1018,7 @@ jobs:
           node_version: ${{ inputs.node_version }}
 
       - name: DB Migration Python
-        if: steps.db-vars.outputs.lang == 'python'
+        if: steps.db-vars.outputs.lang == 'python' && inputs.repo_name != 'vouch-api'
         id: status_db_migration
         shell: bash
         run: |
