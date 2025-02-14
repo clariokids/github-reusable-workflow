@@ -757,7 +757,7 @@ jobs:
           for file in deployment/dev/*; do
             filename=$(basename "$file")
             if [[ "$filename" != "10-deployment.yml" && "$filename" != "05-ingress.yml" && "$filename" != "00-config.yml" ]]; then
-              kubectl -n $env_name apply -f "$file"
+              kubectl -n $env_name --create-namespace apply -f "$file"
             fi
           done
           cd deployment/dev
