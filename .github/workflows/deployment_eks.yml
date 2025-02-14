@@ -812,6 +812,16 @@ jobs:
           env_name=$(echo ${{ needs.config.outputs.namespace }} | sed 's/-[^-]*$//')
           REDIS_HOST=$(kubectl get pod ${{ inputs.service_name }}-redis-0 -n $env_name -o jsonpath='{.status.podIP}')
           echo "REDIS_HOST=$REDIS_HOST" >> $GITHUB_OUTPUT
+
+      - name: Set inputs as variables
+        id: db-vars
+        run: |
+          echo "Setting environment variables from JSON input"
+          echo ${{ needs.deploy.outputs.mysql_host }}
+          echo '${{ needs.config.outputs.db_conf }}' | jq -r 'to_entries | .[] | "\(.key)=\(.value)"' | while IFS='=' read -r key value; do
+            echo "$key=$value"
+            echo "$key=$value" >> $GITHUB_OUTPUT
+          done
           
       - name: Upload Dump Fairdee      
         if: inputs.repo_name == 'vouch-api' && steps.db-vars.outputs.upload_dump == 'true'
@@ -820,7 +830,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install mysql-client -y
           aws s3 ls
-          aws s3 cp s3://staging-factory/vouch-api/yoat_dump_30_03_2024.sql - | mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 vouch
+          aws s3 cp s3://staging-factory/vouch-api/yoat_dump_30_03_2024.sql - | mysql -h $MYSQL_HOST -uroot -p12345 vouch
           echo "Uploaded dump"
 
       - name: Deploy service Fairdee Migration
