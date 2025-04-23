@@ -845,7 +845,7 @@ jobs:
           # Check if vouch database exists
           if ! mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 -e "USE vouch" 2>/dev/null; then
             mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 -e "CREATE DATABASE vouch CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-            aws s3 cp s3://staging-factory/vouch-api/stagingvouch.sql - | mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 vouch
+            aws s3 cp s3://staging-factory/vouch-api/dump_new_yoat_april.sql - | mysql -h ${{ steps.fetchMysqlIp.outputs.MYSQL_HOST }} -uroot -p12345 vouch
             echo "Created database and uploaded dump"
           else
             echo "Database vouch already exists, skipping dump"
