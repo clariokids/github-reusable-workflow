@@ -522,7 +522,7 @@ jobs:
     if: inputs.static_s3_website == false
     outputs:
       image_registry: ${{ steps.publish_image.outputs.image_registry }}
-      image_tag: ${{ (needs.config.outputs.consumer == 'true' && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
+      image_tag: ${{ (needs.config.outputs.consumer == 'true' && format('{0}-{1}', 'consumer', steps.get_disposable_sha.outputs.sha)) || steps.get_disposable_sha.outputs.sha }}
     steps:
       - name: Checkout
         if: inputs.repo_name == ''
@@ -535,7 +535,12 @@ jobs:
           repository: ${{ needs.config.outputs.organisation }}/${{ inputs.repo_name }}
           token: ${{ needs.config.outputs.organisation == 'qoala-platform' && secrets.token_github_platform_org || needs.config.outputs.organisation == 'ADB-Insurance' && secrets.token_github_adb || needs.config.outputs.organisation == 'qoala-engineering' && secrets.token_github }}
           ref: ${{ inputs.branch_name }}
-
+      
+      - name: Get SHA of Disposable Repo
+        id: get_disposable_sha
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          
       - name: Check path  
         shell: bash
         run: |
@@ -602,8 +607,7 @@ jobs:
             CONSUMER=${{ needs.config.outputs.consumer }}
           custom_tags: |
             ${{ (needs.config.outputs.consumer == 'true' && format('{0}-{1}', 'consumer-latest', needs.config.outputs.environment)) || format('{0}-{1}', 'latest', needs.config.outputs.environment)}}
-            ${{ (needs.config.outputs.consumer == 'true' && format('{0}-{1}', 'consumer', github.sha)) || github.sha}}
-
+            ${{ (needs.config.outputs.consumer == 'true' && format('{0}-{1}', 'consumer', steps.get_disposable_sha.outputs.sha)) || steps.get_disposable_sha.outputs.sha }}
    
   check_db_deploy: 
     name: Check DB Deploy 
