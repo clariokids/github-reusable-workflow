@@ -183,6 +183,17 @@ jobs:
     outputs:
       ts: ${{ steps.slack.outputs.ts }}
     steps:
+    - name: Format inputs for Slack
+      id: format_inputs
+      run: |
+        echo "inputs<<EOF" >> $GITHUB_OUTPUT
+        echo '${{ toJson(inputs) }}' | jq -r '
+          to_entries[]
+          | select(.value != "")
+          | "*\(.key)*: \(.value|tostring)"
+        ' >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
     - name: Send notifications to Slack
       id: slack
       uses: slackapi/slack-github-action@v1.24.0
@@ -220,7 +231,14 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Deployment Status: In progress:hourglass_flowing_sand:"
+                    "text": "*Workflow Inputs:*\n${{ steps.format_inputs.outputs.inputs }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Deployment Status: In progress :hourglass_flowing_sand:"
                   }
                 },
                 {
