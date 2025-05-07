@@ -191,68 +191,66 @@ jobs:
           to_entries[]
           | select(.value != "")
           | "*\(.key)*: \(.value|tostring)"
-        ' >> $GITHUB_OUTPUT
+        ' | jq -Rs '.' >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
-
     - name: Send notifications to Slack
       id: slack
       uses: slackapi/slack-github-action@v1.24.0
       env:
         SLACK_BOT_TOKEN: ${{ secrets.DEVOPS_SLACK_BOT_TOKEN }}
       with:
-        channel-id: 'C05HQDA9L8G' # ID of Slack Channel you want to post to
+        channel-id: 'C05HQDA9L8G'
         payload: |
           {
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Staging Factory: New deployment for ${{ inputs.repo_name }}*"
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Application:* ${{ inputs.repo_name }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Environment:* ${{ inputs.environment }}"
-                    }
-                  ]
-                },
-                {
-                  "type": "divider"
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Workflow Inputs:*\n${{ steps.format_inputs.outputs.inputs }}"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "Deployment Status: In progress :hourglass_flowing_sand:"
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Github Workflow:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>"
-                    }
-                  ]
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Staging Factory: New deployment for ${{ inputs.repo_name }}*"
                 }
-              ]
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Application:* ${{ inputs.repo_name }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Environment:* ${{ inputs.environment }}"
+                  }
+                ]
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ${{ steps.format_inputs.outputs.inputs }}
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "Deployment Status: In progress :hourglass_flowing_sand:"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Github Workflow:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>"
+                  }
+                ]
+              }
+            ]
           }
-
 
   provision-static-website:
     name: Provision Static Website Resources
