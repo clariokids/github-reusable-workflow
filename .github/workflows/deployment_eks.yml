@@ -48,22 +48,6 @@ on:
         required: false
         type: string
         default: '^1.17.5'
-      db_name_key:
-        description: "db name"
-        required: false
-        type: string
-      db_host_key:
-        description: "db_host_key"
-        required: false
-        type: string
-      db_user_key:
-        description: "db_user_key"
-        required: false
-        type: string
-      db_password_key:
-        description: "db_password_key"
-        required: false
-        type: string
       ecr_name:
         description: "overide service_name as ecr_name"
         required: false
@@ -73,59 +57,55 @@ on:
         required: false
         type: boolean
         default: false
-      dockerfile:
-        required: false
-        type: string
-        description: 'docker file'
       ssm_folder:
         required: false
         type: string
         description: 'ssm folder'
-      katalon_api_key:
-        required: false
-        description: ''
-        type: string
-        default: KATALON_API_KEY
-      test_suite_collection_path:
-        required: false
-        description: ''
-        type: string
-        default: "Test Suites/QoalaPlus_RegressionTest"
-      execution_profile:
-        required: false
-        description: ''
-        type: string
-        default: "DEV_ACTION"
-      browser_type:
-        required: false
-        description: ''
-        type: string
-        default: "Chrome (headless)"
-      java_distribution:
-        description: "Java distribution to run Katalon"
-        required: false
-        default: zulu
-        type: string
-      java_version:
-        description: "Java version to run Katalon"
-        required: false
-        default: '8'
-        type: string
-      katalon_secret_ssm_key:
-        description: "Katalon JSON secret SSM Key."
-        required: false
-        default: JSON_SECRET
-        type: string
-      katalon_version:
-        description: "Katalon Version"
-        required: false
-        default: '8.3.0'
-        type: string
-      with_regression_test:
-        description: ''
-        required: false
-        default: false
-        type: boolean
+      # katalon_api_key:
+      #   required: false
+      #   description: ''
+      #   type: string
+      #   default: KATALON_API_KEY
+      # test_suite_collection_path:
+      #   required: false
+      #   description: ''
+      #   type: string
+      #   default: "Test Suites/QoalaPlus_RegressionTest"
+      # execution_profile:
+      #   required: false
+      #   description: ''
+      #   type: string
+      #   default: "DEV_ACTION"
+      # browser_type:
+      #   required: false
+      #   description: ''
+      #   type: string
+      #   default: "Chrome (headless)"
+      # java_distribution:
+      #   description: "Java distribution to run Katalon"
+      #   required: false
+      #   default: zulu
+      #   type: string
+      # java_version:
+      #   description: "Java version to run Katalon"
+      #   required: false
+      #   default: '8'
+      #   type: string
+      # katalon_secret_ssm_key:
+      #   description: "Katalon JSON secret SSM Key."
+      #   required: false
+      #   default: JSON_SECRET
+      #   type: string
+      # katalon_version:
+      #   description: "Katalon Version"
+      #   required: false
+      #   default: '8.3.0'
+      #   type: string
+      # with_regression_test:
+      #   description: ''
+      #   required: false
+      #   default: false
+      #   type: boolean
       allowed_branches:
         description: 'allowed_branches'
         required: false
@@ -1069,34 +1049,34 @@ jobs:
           dbmate -u "mysql://root:12345@${{ needs.deploy.outputs.mysql_host }}:3306/${{ steps.db-vars.outputs.name }}" -d ${{ steps.db-vars.outputs.migrationPath }} --no-dump-schema up
 
 
-  regression_test:
-    name: Regression Test
-    runs-on: [self-hosted,eks-runner]
-    needs: [ config, deploy ]
-    if: inputs.with_regression_test == true
-    continue-on-error: true
-    steps:
-      - name: Checkout GitHub Action Repo
-        uses: actions/checkout@v2
-        with:
-          repository: qoala-platform/automation-test-action
-          token: ${{ secrets.token_github_platform_org }}
-          path: .github/actions/automation-test-action
+  # regression_test:
+  #   name: Regression Test
+  #   runs-on: [self-hosted,eks-runner]
+  #   needs: [ config, deploy ]
+  #   if: inputs.with_regression_test == true
+  #   continue-on-error: true
+  #   steps:
+  #     - name: Checkout GitHub Action Repo
+  #       uses: actions/checkout@v2
+  #       with:
+  #         repository: qoala-platform/automation-test-action
+  #         token: ${{ secrets.token_github_platform_org }}
+  #         path: .github/actions/automation-test-action
 
-      - name: QA Automation Test
-        uses: ./.github/actions/automation-test-action
-        env:
-          GIT_HUB_TOKEN: ${{ secrets.token_github }}
-        with: 
-          role-to-assume: ${{ needs.config.outputs.ssm_role_arn }}
-          aws-region: ${{ needs.config.outputs.aws_region }}
-          java-distribution: ${{ inputs.java_distribution }}
-          java-version: ${{ inputs.java_version }}
-          ssm-key: ${{ inputs.katalon_secret_ssm_key }}
-          env: ${{ needs.config.outputs.environment }}
-          bu: ${{ inputs.bu }}
-          katalon-version: ${{ inputs.katalon_version }}
-          test-suite-collection-path: ${{ inputs.test_suite_collection_path }}
-          browser-type: ${{ inputs.browser_type }}
-          api-key: ${{ inputs.katalon_api_key }}
-          execution-profile: ${{ inputs.execution_profile }}
+  #     - name: QA Automation Test
+  #       uses: ./.github/actions/automation-test-action
+  #       env:
+  #         GIT_HUB_TOKEN: ${{ secrets.token_github }}
+  #       with: 
+  #         role-to-assume: ${{ needs.config.outputs.ssm_role_arn }}
+  #         aws-region: ${{ needs.config.outputs.aws_region }}
+  #         java-distribution: ${{ inputs.java_distribution }}
+  #         java-version: ${{ inputs.java_version }}
+  #         ssm-key: ${{ inputs.katalon_secret_ssm_key }}
+  #         env: ${{ needs.config.outputs.environment }}
+  #         bu: ${{ inputs.bu }}
+  #         katalon-version: ${{ inputs.katalon_version }}
+  #         test-suite-collection-path: ${{ inputs.test_suite_collection_path }}
+  #         browser-type: ${{ inputs.browser_type }}
+  #         api-key: ${{ inputs.katalon_api_key }}
+  #         execution-profile: ${{ inputs.execution_profile }}
